@@ -257,7 +257,7 @@ class HrPayslip(models.Model):
                 """
                      Change by tushar update_posted not availabel in account.journal
                 """
-            payslip.move_id.button_cancel()
-            payslip.move_id.unlink()
+          #  payslip.move_id.button_cancel()
+          #  payslip.move_id.unlink()
        
         return self.write({'state': 'cancel'})
