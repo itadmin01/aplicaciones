@@ -33,6 +33,7 @@
         'views/menu.xml',
         'views/horas_extras_view.xml',
         'wizard/wizard_liquidacion_view.xml',
+        'wizard/import_nomina_xml.xml',
     ],
     'installable': True,
     'application': False,

@@ -17,7 +17,6 @@ class import_nomina_from_xml(models.TransientModel):
     file_name = fields.Char("Nombre del archivo")
     #nomina_id = fields.Many2one("hr.payslip",'Nomina')
     
-    @api.multi
     def import_xml_nomina_button(self):
         self.ensure_one()
         nomina_id = self.env['hr.payslip'].browse(self._context.get('active_id'))
