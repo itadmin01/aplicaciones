@@ -194,7 +194,7 @@
                            <group  string="Configuración">
                                <field name="name" string='Nombre'/>
                                <field name="periodicidad_pago"/>
-                               <field name="tipo_pago"  attrs="{'invisible':[('periodicidad_pago','!=','04')]}" />
+                               <field name="tipo_pago"  attrs="{'invisible':[('periodicidad_pago','not in',['04', '05'])]}" />
                            </group>
                            <group  string="ISR">
                                <field name="isr_ajustar"/>

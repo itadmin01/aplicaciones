@@ -45,43 +45,54 @@ class HrPayslipRun(models.Model):
     @api.onchange('tipo_configuracion')
     def _set_periodicidad(self):
         if self.tipo_configuracion:
-           if self.tipo_configuracion.fijo_imss:
-              values = {
-                  'periodicidad_pago': self.tipo_configuracion.periodicidad_pago,
-                  'isr_ajustar': self.tipo_configuracion.isr_ajustar,
-                  'isr_devolver': self.tipo_configuracion.isr_devolver,
-                  'imss_mes': self.tipo_configuracion.imss_mes,
-                  'imss_dias': self.tipo_configuracion.imss_dias,
-              }
-           else:
-              values = {
-                  'periodicidad_pago': self.tipo_configuracion.periodicidad_pago,
-                  'isr_ajustar': self.tipo_configuracion.isr_ajustar,
-                  'isr_devolver': self.tipo_configuracion.isr_devolver,
-              }
-           self.update(values)
+            if self.tipo_configuracion.fijo_imss:
+                values = {
+                   'periodicidad_pago': self.tipo_configuracion.periodicidad_pago,
+                   'isr_ajustar': self.tipo_configuracion.isr_ajustar,
+                   'isr_devolver': self.tipo_configuracion.isr_devolver,
+                   'imss_mes': self.tipo_configuracion.imss_mes,
+                   'imss_dias': self.tipo_configuracion.imss_dias,
+                   }
+            else:
+                values = {
+                   'periodicidad_pago': self.tipo_configuracion.periodicidad_pago,
+                   'isr_ajustar': self.tipo_configuracion.isr_ajustar,
+                   'isr_devolver': self.tipo_configuracion.isr_devolver,
+               }
+            self.update(values)
 
 
     @api.onchange('periodicidad_pago', 'tipo_configuracion')
     def _dias_pagar(self):
         if self.periodicidad_pago:
-          if self.periodicidad_pago == '01':
-               self.dias_pagar = 1
-          elif self.periodicidad_pago == '02':
-               self.dias_pagar = 7
-          elif self.periodicidad_pago == '03':
-               self.dias_pagar = 14
-          elif self.periodicidad_pago == '04':
-               if self.tipo_configuracion.tipo_pago == '01':
-                  self.dias_pagar = 15
-               else:
-                  delta = self.date_end - self.date_start
-                  self.dias_pagar = delta.days + 1
-          elif self.periodicidad_pago == '05':
-               self.dias_pagar = 30
-          else:
-               delta = self.date_end - self.date_start
-               self.dias_pagar = delta.days + 1
+            if self.periodicidad_pago == '01':
+                self.dias_pagar = 1
+            elif self.periodicidad_pago == '02':
+                self.dias_pagar = 7
+            elif self.periodicidad_pago == '03':
+                self.dias_pagar = 14
+            elif self.periodicidad_pago == '04':
+                if self.tipo_configuracion.tipo_pago == '01':
+                    self.dias_pagar = 15
+                    self.imss_dias = self.imss_mes / 2
+                elif self.tipo_configuracion.tipo_pago == '02':
+                    delta = self.date_end - self.date_start
+                    self.dias_pagar = delta.days + 1
+                    self.imss_dias = delta.days + 1
+                else:
+                    self.dias_pagar = 15.21
+                    self.imss_dias = 15.21
+            elif self.periodicidad_pago == '05':
+                if self.tipo_configuracion.tipo_pago == '01':
+                    self.dias_pagar = 30
+                elif self.tipo_configuracion.tipo_pago == '02':
+                    delta = self.date_end - self.date_start
+                    self.dias_pagar = delta.days + 1
+                else:
+                    self.dias_pagar = 30.42
+            else:
+                delta = self.date_end - self.date_start
+                self.dias_pagar = delta.days + 1
 
     @api.onchange('periodicidad_pago', 'date_end')
     def _compute_imss_mes(self):
@@ -99,23 +110,23 @@ class HrPayslipRun(models.Model):
 
     @api.onchange('nominas_mes')
     def _get_imss_dias(self):
-           if self.nominas_mes:
-             if self.tipo_configuracion:
-               if not self.tipo_configuracion.fijo_imss:
-                  values = {
-                      'imss_dias': self.imss_mes / self.nominas_mes
-                  }
-                  self.update(values)
-               else:
-                  values = {
-                      'imss_dias': self.tipo_configuracion.imss_dias
-                  }
-                  self.update(values)
-             else:
-                  values = {
-                      'imss_dias': self.imss_mes / self.nominas_mes
-                  }
-                  self.update(values)
+        if self.nominas_mes and self.periodicidad_pago != '04':
+            if self.tipo_configuracion:
+                if not self.tipo_configuracion.fijo_imss:
+                    values = {
+                       'imss_dias': self.imss_mes / self.nominas_mes
+                   }
+                    self.update(values)
+                else:
+                    values = {
+                       'imss_dias': self.tipo_configuracion.imss_dias
+                   }
+                    self.update(values)
+            else:
+                values = {
+                     'imss_dias': self.imss_mes / self.nominas_mes
+                 }
+                self.update(values)
 
     @api.onchange('periodicidad_pago')
     def _update_nominas_mes(self):
@@ -268,7 +279,8 @@ class ConfiguracionNomina(models.Model):
     name = fields.Char(string='Nombre', required=True)
     tipo_pago = fields.Selection(
         selection=[('01', 'Por periodo'), 
-                   ('02', 'Por día'),],
+                   ('02', 'Por día'),
+                   ('03', 'Mes proporcional'),],
         string=_('Conteo de días'),
     )
     fijo_imss = fields.Boolean(string='Dias fijos')
