@@ -5,6 +5,7 @@ from datetime import datetime
 from odoo.tools.mimetypes import guess_mimetype
 from odoo.exceptions import Warning
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT, pycompat
+from collections import MutableMapping
 
 import io, os
 import base64
@@ -146,7 +147,7 @@ class ImportarDiasWizard(models.TransientModel):
         sheet = book.sheet_by_index(0)
         # emulate Sheet.get_rows for pre-0.9.4
         is_header = False
-        for row in pycompat.imap(sheet.row, range(sheet.nrows)):
+        for row in map(sheet.row, range(sheet.nrows)):
             values = []
             is_first_cell = False
             first_cell_val = ''
@@ -158,7 +159,7 @@ class ImportarDiasWizard(models.TransientModel):
 #                         if is_float
 #                         else pycompat.text_type(int(cell.value))
 #                     )
-                    cell_value = pycompat.text_type(cell.value) if is_float else pycompat.text_type(int(cell.value))
+                    cell_value = str(cell.value) if is_float else str(int(cell.value))
                     
                 elif cell.ctype is xlrd.XL_CELL_DATE:
                     is_datetime = cell.value % 1 != 0.0
