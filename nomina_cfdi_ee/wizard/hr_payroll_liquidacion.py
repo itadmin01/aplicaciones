@@ -180,8 +180,8 @@ class GeneraLiquidaciones(models.TransientModel):
 
             #Dias de aguinaldo
             year_date_start = self.contract_id.date_start.year
-            first_day_date = datetime(date.today().year, 1, 1)
-            if year_date_start < date.today().year:
+            first_day_date = datetime(self.fecha_liquidacion.year, 1, 1)
+            if year_date_start < self.fecha_liquidacion.year:
                 delta1 = self.fecha_liquidacion - first_day_date.date()
                 self.dias_aguinaldo = delta1.days + 1 
             else:
