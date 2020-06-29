@@ -100,7 +100,7 @@ class ImportarDiasWizard(models.TransientModel):
             if other_inputs:
                 vals['amount'] = row[3]
             else:
-                vals.update({'number_of_days':row[3], 'number_of_hours' : row[4]})
+                vals.update({'number_of_days':row[3] or '0', 'number_of_hours' : row[4] or '0'})
                 
             for payslip in payslips:
                 contract_id = payslip.contract_id and payslip.contract_id.id
