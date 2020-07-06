@@ -41,6 +41,7 @@ class HrPayslipRun(models.Model):
         string=_('Frecuencia de pago'), required=True
     )
     fecha_pago = fields.Date(string=_('Fecha de pago'), required=True)
+    isr_anual = fields.Boolean(string='ISR anual')
 
     @api.onchange('tipo_configuracion')
     def _set_periodicidad(self):
@@ -98,15 +99,15 @@ class HrPayslipRun(models.Model):
     def _compute_imss_mes(self):
         for batch in self:
             if batch.date_end:
-             if self.tipo_configuracion:
-                if not self.tipo_configuracion.fijo_imss:
-                   date_end = batch.date_end
-                   batch.imss_mes = monthrange(date_end.year,date_end.month)[1]
+                if self.tipo_configuracion:
+                    if not self.tipo_configuracion.fijo_imss:
+                        date_end = batch.date_end
+                        batch.imss_mes = monthrange(date_end.year,date_end.month)[1]
+                    else:
+                        batch.imss_mes = self.tipo_configuracion.imss_mes
                 else:
-                   batch.imss_mes = self.tipo_configuracion.imss_mes
-             else:
-                   date_end = batch.date_end
-                   batch.imss_mes = monthrange(date_end.year,date_end.month)[1]
+                    date_end = batch.date_end
+                    batch.imss_mes = monthrange(date_end.year,date_end.month)[1]
 
     @api.onchange('nominas_mes')
     def _get_imss_dias(self):
@@ -252,14 +253,14 @@ class HrPayslipRun(models.Model):
     @api.onchange('estructura')
     def _set_aguinaldo_dates(self):
         if self.estructura:
-           if self.estructura.name == 'Aguinaldo':
-              fecha_fin = datetime(date.today().year, 12, 31)
-              fecha_inicio = datetime(date.today().year, 1, 1)
-              values = {
-                  'date_end': fecha_fin.strftime('%Y-%m-%d'),
-                  'date_start': fecha_inicio.strftime('%Y-%m-%d'),
-              }
-              self.update(values)
+            if self.estructura.name == 'Aguinaldo':
+                fecha_fin = datetime(date.today().year, 12, 31)
+                fecha_inicio = datetime(date.today().year, 1, 1)
+                values = {
+                    'date_end': fecha_fin.strftime('%Y-%m-%d'),
+                    'date_start': fecha_inicio.strftime('%Y-%m-%d'),
+                }
+                self.update(values)
 
 
 class OtrasEntradas(models.Model):

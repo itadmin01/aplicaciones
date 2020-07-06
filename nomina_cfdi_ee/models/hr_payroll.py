@@ -156,16 +156,22 @@ class HrPayslip(models.Model):
     dias_pagar = fields.Float('Pagar en la nomina')
     no_nomina = fields.Selection(
         selection=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5'), ('6', '6')], string=_('Nómina del mes'))
-    acum_per_totales = fields.Float('Percepciones totales', compute='_get_percepciones_totales')
-    acum_per_grav  = fields.Float('Percepciones gravadas', compute='_get_percepciones_gravadas')
-    acum_isr  = fields.Float('ISR', compute='_get_isr')
-    acum_isr_antes_subem  = fields.Float('ISR antes de SUBEM', compute='_get_isr_antes_subem')
-    acum_subsidio_aplicado  = fields.Float('Subsidio aplicado', compute='_get_subsidio_aplicado')
+    acum_per_totales = fields.Float('Percepciones totales', compute='_get_acumulados_mensual')
+    acum_per_grav  = fields.Float('Percepciones gravadas', compute='_get_acumulados_mensual')
+    acum_isr  = fields.Float('ISR', compute='_get_acumulados_mensual')
+    acum_isr_antes_subem  = fields.Float('ISR antes de SUBEM', compute='_get_acumulados_mensual')
+    acum_subsidio_aplicado  = fields.Float('Subsidio aplicado', compute='_get_acumulados_mensual')
     acum_fondo_ahorro = fields.Float('Fondo ahorro', compute='_get_fondo_ahorro')
     dias_periodo = fields.Float(string=_('Dias en el periodo'), compute='_get_dias_periodo')
     isr_devolver = fields.Boolean(string='Devolver ISR')
     isr_ajustar = fields.Boolean(string='Ajustar ISR en cada nómina')
-    acum_sueldo = fields.Float('Sueldo', compute='_get_sueldo')
+    acum_sueldo = fields.Float('Sueldo', compute='_get_acumulados_mensual')
+
+    acum_per_grav_anual  = fields.Float('Percepciones gravadas (anual)', compute='_get_acumulados_anual')
+    acum_isr_anual  = fields.Float('ISR (anual)', compute='_get_acumulados_anual')
+    acum_isr_antes_subem_anual  = fields.Float('ISR antes de SUBEM (anual)', compute='_get_acumulados_anual')
+    acum_subsidio_aplicado_anual  = fields.Float('Subsidio aplicado (anual)', compute='_get_acumulados_anual')
+    isr_anual = fields.Boolean(string='ISR anual')
 
     mes = fields.Selection(
         selection=[('01', 'Enero'), 
@@ -612,126 +618,6 @@ class HrPayslip(models.Model):
         return super(HrPayslip, self).copy(default=default)
 
     @api.onchange('mes')
-    def _get_percepciones_gravadas(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio # self.date_from
-            date_end = mes_actual.dia_fin #self.date_to
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'TPERG')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_per_grav = total
-
-    @api.onchange('mes')
-    def _get_isr(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio # self.date_from
-            date_end = mes_actual.dia_fin #self.date_to
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'ISR2'),('category_id.code','=','DED')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_isr = total
-
-    @api.onchange('mes')
-    def _get_isr_antes_subem(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio # self.date_from
-            date_end = mes_actual.dia_fin #self.date_to
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'ISR')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_isr_antes_subem = total
-
-    @api.onchange('mes')
-    def _get_subsidio_aplicado(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio # self.date_from
-            date_end = mes_actual.dia_fin #self.date_to
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'SUB')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_subsidio_aplicado = total
-
-    @api.onchange('mes')
     def _get_fondo_ahorro(self):
         total = 0
         if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
@@ -761,67 +647,7 @@ class HrPayslip(models.Model):
                         total += line.total
         self.acum_fondo_ahorro = total
 
-    @api.onchange('mes')
-    def _get_percepciones_totales(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio
-            date_end = mes_actual.dia_fin
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'TPER')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_per_totales = total
-
-    @api.onchange('mes')
-    def _get_sueldo(self):
-        total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
-            mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
-            date_start = mes_actual.dia_inicio # self.date_from
-            date_end = mes_actual.dia_fin #self.date_to
-            domain=[('state','=', 'done')]
-            if date_start:
-                domain.append(('date_from','>=',date_start))
-            if date_end:
-                domain.append(('date_to','<=',date_end))
-            domain.append(('employee_id','=',self.employee_id.id))
-            rules = self.env['hr.salary.rule'].search([('code', '=', 'P001')])
-            payslips = self.env['hr.payslip'].search(domain)
-            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
-            employees = {}
-            for line in payslip_lines:
-                if line.slip_id.employee_id not in employees:
-                    employees[line.slip_id.employee_id] = {line.slip_id: []}
-                if line.slip_id not in employees[line.slip_id.employee_id]:
-                    employees[line.slip_id.employee_id].update({line.slip_id: []})
-                employees[line.slip_id.employee_id][line.slip_id].append(line)
-
-            for employee, payslips in employees.items():
-                for payslip,lines in payslips.items():
-                    for line in lines:
-                        total += line.total
-        self.acum_sueldo = total
-
-    def get_acumulado(self, codigo):
+    def acumulado_mes(self, codigo):
         total = 0
         if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
             mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
@@ -849,6 +675,52 @@ class HrPayslip(models.Model):
                     for line in lines:
                         total += line.total
         return total
+
+    def acumulado_anual(self, codigo):
+        total = 0
+        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
+            #mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
+            date_start = date(fields.Date.from_string(self.date_from).year, 1, 1)
+            date_end = date(fields.Date.from_string(self.date_from).year, 12, 31)
+            domain=[('state','=', 'done')]
+            if date_start:
+                domain.append(('date_from','>=',date_start))
+            if date_end:
+                domain.append(('date_to','<=',date_end))
+            domain.append(('employee_id','=',self.employee_id.id))
+            rules = self.env['hr.salary.rule'].search([('code', '=', codigo)])
+            payslips = self.env['hr.payslip'].search(domain)
+            payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
+            employees = {}
+            for line in payslip_lines:
+                if line.slip_id.employee_id not in employees:
+                    employees[line.slip_id.employee_id] = {line.slip_id: []}
+                if line.slip_id not in employees[line.slip_id.employee_id]:
+                    employees[line.slip_id.employee_id].update({line.slip_id: []})
+                employees[line.slip_id.employee_id][line.slip_id].append(line)
+
+            for employee, payslips in employees.items():
+                for payslip,lines in payslips.items():
+                    for line in lines:
+                        total += line.total
+        return total
+
+    @api.onchange('mes')
+    def _get_acumulados_mensual(self):
+         self.acum_sueldo = self.acumulado_mes('P001')
+         self.acum_per_totales = self.acumulado_mes('TPER')
+         #self.acum_fondo_ahorro = acumulado_mes('P001')
+         self.acum_subsidio_aplicado = self.acumulado_mes('SUB')
+         self.acum_isr_antes_subem = self.acumulado_mes('ISR')
+         self.acum_per_grav = self.acumulado_mes('TPERG')
+         self.acum_isr = self.acumulado_mes('ISR2')
+
+    @api.onchange('mes')
+    def _get_acumulados_anual(self):
+         self.acum_subsidio_aplicado_anual = self.acumulado_anual('SUB')
+         self.acum_isr_antes_subem_anual = self.acumulado_anual('ISR')
+         self.acum_per_grav_anual = self.acumulado_anual('TPERG')
+         self.acum_isr_anual = self.acumulado_anual('ISR2')
 
     @api.model
     def to_json(self):

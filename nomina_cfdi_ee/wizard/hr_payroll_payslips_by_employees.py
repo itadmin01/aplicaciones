@@ -58,6 +58,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                             'mes': '{:02d}'.format(to_date.month),
                             'isr_devolver': payslip_batch.isr_devolver,
                             'isr_ajustar': payslip_batch.isr_ajustar,
+                            'isr_anual': payslip_batch.isr_anual,
                             'concepto_periodico': payslip_batch.concepto_periodico})
 
             payslips += self.env['hr.payslip'].create(res)
