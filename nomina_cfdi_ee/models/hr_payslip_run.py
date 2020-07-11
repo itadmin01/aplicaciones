@@ -205,18 +205,14 @@ class HrPayslipRun(models.Model):
         #cr = self._cr
         payslip_obj = self.env['hr.payslip']
         for payslip_id in self.slip_ids.ids:
-            try:
-                #cr.execute('SAVEPOINT model_payslip_confirm_cfdi_save')
-                with self.env.cr.savepoint():
-                    payslip = payslip_obj.browse(payslip_id)
-                    if payslip.state in ['draft','verify']:
-                        payslip.action_payslip_done()
-                    if not payslip.nomina_cfdi:
-                        payslip.action_cfdi_nomina_generate()
-                #cr.execute('RELEASE SAVEPOINT model_payslip_confirm_cfdi_save')
-            except Exception as e:
-                #cr.execute('ROLLBACK TO SAVEPOINT model_payslip_confirm_cfdi_save')
-                pass
+            payslip = payslip_obj.browse(payslip_id)
+            if payslip.state in ['draft','verify']:
+               payslip.action_payslip_done()
+               try:
+                   if not payslip.nomina_cfdi:
+                      payslip.action_cfdi_nomina_generate()
+               except Exception as e:
+                   pass
         return
 
     @api.onchange('periodicidad_pago', 'date_start')
