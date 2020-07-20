@@ -32,7 +32,6 @@ class CalculoSBC(models.TransientModel):
     registro_patronal = fields.Char(string='Registro patronal')
     file_data = fields.Binary("File Data")
 
-    @api.multi
     def print_sbc_report(self):
         domain=[('state','=', 'done')]
         tablas_bimestre = self.tabla_cfdi.tabla_bimestral

@@ -26,7 +26,6 @@
         <field name="name">SBC Bimestral</field>
         <field name="res_model">wizard.sbc.bimestral</field>
         <field name="type">ir.actions.act_window</field>
-        <field name="view_type">form</field>
         <field name="view_mode">form</field>
         <field name="view_id" ref="wizard_sbc_bimestral_form_view"/>
         <field name="target">new</field>
@@ -36,7 +35,7 @@
                 name="SBC Bimestral"
                 action="action_wizard_sbc_bimestral"
                 parent="nomina_cfdi_extras_ee.menu_payroll_payslip_reportes"
-                groups="hr_payroll.group_hr_payroll_user"
+                groups="om_hr_payroll.group_hr_payroll_user"
                 sequence="20"/>
 
 </odoo>
