@@ -10,6 +10,8 @@ from collections import defaultdict
 import io
 from odoo.tools.misc import xlwt
 import base64
+#import logging
+#_logger = logging.getLogger(__name__)
 
 class CalculoSBC(models.TransientModel):
     _name = 'wizard.sbc.bimestral'
@@ -41,6 +43,7 @@ class CalculoSBC(models.TransientModel):
         domain.append(('date_from','>=',self.date_from))
         self.date_to = fecha_bimestre.dia_fin
         domain.append(('date_to','<=',self.date_to))
+        primer_dia = self.date_to.replace(day=1)
 
         if self.employee_id:
             domain.append(('employee_id','=',self.employee_id.id))
@@ -57,10 +60,10 @@ class CalculoSBC(models.TransientModel):
         
         worksheet = workbook.add_sheet('Nomina')
         
-        from_to_date = 'De  %s A %s'%(self.date_from or '', self.date_to or '')
+        from_to_date = 'De  %s a %s'%(self.date_from or '', self.date_to or '')
         concepto = 'Concepto:  %s'%(self.date_from)
         
-        worksheet.write_merge(1, 1, 0, 4, 'Reporte de acumulados de conceptos', bold)
+        worksheet.write_merge(1, 1, 0, 4, 'Reporte de cálculo de sueldo base de cotización', bold)
         worksheet.write_merge(2, 2, 0, 4, from_to_date, bold)
         #worksheet.write_merge(3, 3, 0, 4, concepto, bold)
         
@@ -86,9 +89,9 @@ class CalculoSBC(models.TransientModel):
         num_rules = 0
         rule_index = {}
         for rule in rules:
-            worksheet.write(4, col, 'Total' + rule.name, bold)
-            worksheet.write(4, col+1, 'Exento' + rule.name, bold)
-            worksheet.write(4, col+2, 'Gravado' + rule.name, bold)
+            worksheet.write(4, col, 'Total ' + rule.name, bold)
+            worksheet.write(4, col+1, 'Exento ' + rule.name, bold)
+            worksheet.write(4, col+2, 'Gravado ' + rule.name, bold)
             rule_index.update({rule.id:col})
             col +=3
             num_rules += 1
@@ -132,7 +135,8 @@ class CalculoSBC(models.TransientModel):
             monto_pv = dias_pv * contrato.sueldo_diario
             pv_x_dia = monto_pv / 366
             sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
-            uma = contrato.tablas_cfdi_id.uma * 30 * 2
+            uma = contrato.tablas_cfdi_id.uma * 30
+            msbc = contrato.sueldo_base_cotizacion * 30
             worksheet.write(row, 0, employee.name)
             worksheet.write(row, 1, employee.segurosocial)
             worksheet.write(row, 2, employee.rfc)
@@ -156,6 +160,8 @@ class CalculoSBC(models.TransientModel):
             worksheet.write(row, 22, 'Dias laborados', bold)
             row +=1
             total_by_rule = defaultdict(lambda: 0.0)
+            total_by_rule1 = defaultdict(lambda: 0.0)
+            total_by_rule2 = defaultdict(lambda: 0.0)
             for payslip,lines in payslips.items():
                 worksheet.write(row, 20, payslip.date_from)
                 worksheet.write(row, 21, tipo_nomina.get(payslip.tipo_nomina,''))
@@ -171,29 +177,63 @@ class CalculoSBC(models.TransientModel):
                 for line in lines:
                     worksheet.write(row, rule_index.get(line.salary_rule_id.id), line.total)
                     total_by_rule[line.salary_rule_id.id] += line.total
+                    if payslip.date_to < primer_dia:
+                        total_by_rule1[line.salary_rule_id.id] += line.total
+#                        _logger.info("total1: %s", total_by_rule1[line.salary_rule_id.id])
+                    else:
+                        total_by_rule2[line.salary_rule_id.id] += line.total
+#                        _logger.info("total2: %s", total_by_rule2[line.salary_rule_id.id])
                 row +=1
+
             #worksheet.write(row, 19, 'Total', bold)
             for rule_id, total in total_by_rule.items():
                 worksheet.write(init_row, rule_index.get(rule_id), total)
                 #sacamos calculo exento y grvado dependiendo de opción en regla salarial
                 regla = self.env['hr.salary.rule'].search([('id', '=', rule_id)])
-                if regla.variable_imss_tipo == '001':
+                if regla.variable_imss_tipo == '001':  # Monto total
                    worksheet.write(init_row, rule_index.get(rule_id)+1, 0)
                    worksheet.write(init_row, rule_index.get(rule_id)+2, total)
                    total_gravado  += total
-                elif regla.variable_imss_tipo == '002':
+                elif regla.variable_imss_tipo == '002': # Pct de UMA
                    tot_exento = uma * regla.variable_imss_monto/100
-                   if total > tot_exento:
-                      worksheet.write(init_row, rule_index.get(rule_id)+1, tot_exento)
-                      worksheet.write(init_row, rule_index.get(rule_id)+2, total-tot_exento)
-                      total_gravado  += total-tot_exento
-                   else:
-                      worksheet.write(init_row, rule_index.get(rule_id)+1, total)
-                      worksheet.write(init_row, rule_index.get(rule_id)+2, 0)
-                else:
-                   worksheet.write(init_row, rule_index.get(rule_id)+1, 0)
-                   worksheet.write(init_row, rule_index.get(rule_id)+2, total)
-                   total_gravado  += total
+                   bimestre_exento = 0
+                   bimestre_gravado = 0
+                   if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        if total_by_rule1[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule1[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule1[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule1[rule_id]
+                   if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        if total_by_rule2[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule2[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule2[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule2[rule_id]
+                   worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
+                   worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
+                else:   # Pct de SBC
+                   tot_exento = msbc * regla.variable_imss_monto/100
+                   bimestre_exento = 0
+                   bimestre_gravado = 0
+                   if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        if total_by_rule1[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule1[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule1[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule1[rule_id]
+                   if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        if total_by_rule2[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule2[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule2[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule2[rule_id]
+                   worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
+                   worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
             #poner totales
             worksheet.write(init_row, 18, dias_periodo)
             worksheet.write(init_row, tot_col, total_gravado)
