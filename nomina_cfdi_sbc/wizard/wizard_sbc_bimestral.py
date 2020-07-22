@@ -157,7 +157,7 @@ class CalculoSBC(models.TransientModel):
             row +=1
             worksheet.write(row, 20, 'Fecha de la nomina', bold)
             worksheet.write(row, 21, 'Tipo', bold)
-            worksheet.write(row, 22, 'Dias laborados', bold)
+            #worksheet.write(row, 22, 'Dias laborados', bold)
             row +=1
             total_by_rule = defaultdict(lambda: 0.0)
             total_by_rule1 = defaultdict(lambda: 0.0)
@@ -165,14 +165,9 @@ class CalculoSBC(models.TransientModel):
             for payslip,lines in payslips.items():
                 worksheet.write(row, 20, payslip.date_from)
                 worksheet.write(row, 21, tipo_nomina.get(payslip.tipo_nomina,''))
-                #dias laborados
-                dias_lab = 0
-                if payslip.tipo_nomina == 'O':
-                   for workline in payslip.worked_days_line_ids:
-                       if workline.code == 'WORK100' or workline.code == 'FJC':
-                           dias_periodo += workline.number_of_days
-                           dias_lab += workline.number_of_days
-                worksheet.write(row, 22, dias_lab)
+
+                 #             dias_lab += workline.number_of_days
+                #worksheet.write(row, 22, dias_lab)
 
                 for line in lines:
                     worksheet.write(row, rule_index.get(line.salary_rule_id.id), line.total)
@@ -234,13 +229,29 @@ class CalculoSBC(models.TransientModel):
                            bimestre_exento += total_by_rule2[rule_id]
                    worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
                    worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
+
+            #dias del periodo, calcula dias de todas las nóminas no solo las que aparecen con gravados
+#            dias_lab = 0
+            new_domain=[('state','=', 'done')]
+            new_domain.append(('date_from','>=',self.date_from))
+            new_domain.append(('date_to','<=',self.date_to))
+            new_domain.append(('employee_id','=',employee.id))
+            payslips_days = self.env['hr.payslip'].search(new_domain)
+            for pay_day in payslips_days:
+                if pay_day.tipo_nomina == 'O':
+                   for workline in pay_day.worked_days_line_ids:
+                       if workline.code == 'WORK100' or workline.code == 'FJC':
+                           dias_periodo += workline.number_of_days
+
             #poner totales
             worksheet.write(init_row, 18, dias_periodo)
             worksheet.write(init_row, tot_col, total_gravado)
-            worksheet.write(init_row, tot_col+1, round(total_gravado/dias_periodo,2))
-            worksheet.write(init_row, tot_col+2, round(sdi + total_gravado/dias_periodo,2))
+            if dias_periodo != 0:
+              worksheet.write(init_row, tot_col+1, round(total_gravado/dias_periodo,2))
+              worksheet.write(init_row, tot_col+2, round(sdi + total_gravado/dias_periodo,2))
             row +=1
                 
+#        worksheet.write(row,7,xlwt.Formula("SUM($H$3:$H$%d)/2"%(row)), style)
 
                 
         fp = io.BytesIO()
