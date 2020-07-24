@@ -34,6 +34,28 @@ class CalculoSBC(models.TransientModel):
     registro_patronal = fields.Char(string='Registro patronal')
     file_data = fields.Binary("File Data")
 
+    def dias_vac(self, anos):
+       dias_vac = 0
+       if anos > 0.01 and anos < 1:
+          dias_vac = 6
+       elif anos > 1.01 and anos < 2:
+          dias_vac = 8
+       elif anos > 2.01 and anos < 3:
+          dias_vac = 10
+       elif anos > 3.01 and anos < 4:
+          dias_vac = 12
+       elif anos > 4.01 and anos < 9:
+          dias_vac = 14
+       elif anos > 9.01 and anos < 14:
+          dias_vac = 16
+       elif anos > 14.01 and anos < 19:
+          dias_vac = 18
+       elif anos > 19.01 and anos < 22:
+          dias_vac = 20
+       return dias_vac
+
+
+    @api.multi
     def print_sbc_report(self):
         domain=[('state','=', 'done')]
         tablas_bimestre = self.tabla_cfdi.tabla_bimestral
@@ -113,7 +135,11 @@ class CalculoSBC(models.TransientModel):
             #employees[line.slip_id.employee_id].add(line)
             
             #employee_payslip[line.slip_id.employee_id].add(line.slip_id)
-            
+        year = self.date_to.year
+        d1 = datetime(year, 1, 1)
+        d2 = datetime(year + 1, 1, 1)
+        days_year = (d2 - d1).days 
+
         row = 5
         tipo_nomina = {'O':'Nómina ordinaria', 'E':'Nómina extraordinaria'}
         for employee, payslips in employees.items():
@@ -121,19 +147,20 @@ class CalculoSBC(models.TransientModel):
             total_gravado = 0
             dias_periodo = 0
             contrato = employee.contract_id[0]
-            factor_aguinaldo = 15*1/366
+            factor_aguinaldo = 15.0/days_year
             aguinaldo = contrato.sueldo_diario * factor_aguinaldo
             dia_hoy =  self.date_to + timedelta(days=1)
-            dias_antiguedad = dia_hoy - contrato.date_start + timedelta(days=1)
-            dias_anos = dias_antiguedad.days / 366
+            dias_antiguedad = dia_hoy - contrato.date_start
+            dias_anos = dias_antiguedad.days / days_year
             if dias_anos < 1.0: 
                 tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad >= dias_anos).sorted(key=lambda x:x.antiguedad) 
             else: 
                 tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= dias_anos).sorted(key=lambda x:x.antiguedad, reverse=True) 
             tablas_cfdi_line = tablas_cfdi_lines[0]
-            dias_pv = tablas_cfdi_line.vacaciones * tablas_cfdi_line.prima_vac/100.0
+            vacaciones = self.dias_vac(dias_anos)
+            dias_pv = vacaciones * tablas_cfdi_line.prima_vac/100.0
             monto_pv = dias_pv * contrato.sueldo_diario
-            pv_x_dia = monto_pv / 366
+            pv_x_dia = monto_pv / days_year
             sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
             uma = contrato.tablas_cfdi_id.uma * 30
             msbc = contrato.sueldo_base_cotizacion * 30
@@ -144,16 +171,16 @@ class CalculoSBC(models.TransientModel):
             worksheet.write(row, 4, contrato.date_start)
             worksheet.write(row, 5, contrato.department_id.name)
             worksheet.write(row, 6, contrato.sueldo_diario)
-            worksheet.write(row, 7, round(factor_aguinaldo,2))
-            worksheet.write(row, 8, round(aguinaldo,2))
+            worksheet.write(row, 7, round(factor_aguinaldo,6))
+            worksheet.write(row, 8, round(aguinaldo,4))
             worksheet.write(row, 9, dia_hoy)
             worksheet.write(row, 10, dias_antiguedad.days)
             worksheet.write(row, 11, round(dias_anos,2))
-            worksheet.write(row, 12, tablas_cfdi_line.vacaciones)
+            worksheet.write(row, 12, vacaciones)
             worksheet.write(row, 13, dias_pv)
-            worksheet.write(row, 14, round(monto_pv,2))
-            worksheet.write(row, 15, round(pv_x_dia,2))
-            worksheet.write(row, 16, round(sdi,2))
+            worksheet.write(row, 14, round(monto_pv,4))
+            worksheet.write(row, 15, round(pv_x_dia,4))
+            worksheet.write(row, 16, round(sdi,4))
             row +=1
             worksheet.write(row, 20, 'Fecha de la nomina', bold)
             worksheet.write(row, 21, 'Tipo', bold)
