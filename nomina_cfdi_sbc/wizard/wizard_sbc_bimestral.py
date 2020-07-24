@@ -54,8 +54,6 @@ class CalculoSBC(models.TransientModel):
           dias_vac = 20
        return dias_vac
 
-
-    @api.multi
     def print_sbc_report(self):
         domain=[('state','=', 'done')]
         tablas_bimestre = self.tabla_cfdi.tabla_bimestral
