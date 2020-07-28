@@ -4,7 +4,7 @@ from odoo import models, fields, api
 #import time
 #from datetime import datetime
 #from dateutil import relativedelta
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from collections import defaultdict
 import io
@@ -293,6 +293,156 @@ class CalculoSBC(models.TransientModel):
             'target': 'self',
             }
         return action
+
+    def change_sbc(self):
+        domain=[('state','=', 'done')]
+        tablas_bimestre = self.tabla_cfdi.tabla_bimestral
+        fecha_bimestre = tablas_bimestre[int(self.bimestre) -1]
+
+        self.date_from = fecha_bimestre.dia_inicio
+        domain.append(('date_from','>=',self.date_from))
+        self.date_to = fecha_bimestre.dia_fin
+        domain.append(('date_to','<=',self.date_to))
+        primer_dia = self.date_to.replace(day=1)
+
+        if self.employee_id:
+            domain.append(('employee_id','=',self.employee_id.id))
+        #if not self.employee_id and self.department_id:
+        #    employees = self.env['hr.employee'].search([('department_id', '=', self.department_id.id)])
+        #    domain.append(('employee_id','in',employees.ids))
+
+        payslips = self.env['hr.payslip'].search(domain)
+        rules = self.env['hr.salary.rule'].search([('variable_imss', '=', True)])
+        payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
+
+        col = 23
+        rule_index = {}
+        for rule in rules:
+            rule_index.update({rule.id:col})
+            col +=3
+
+        #employees = defaultdict(dict)
+        #employee_payslip = defaultdict(set)
+        employees = {}
+        for line in payslip_lines:
+            if line.slip_id.employee_id not in employees:
+                employees[line.slip_id.employee_id] = {line.slip_id: []}
+            if line.slip_id not in employees[line.slip_id.employee_id]:
+                employees[line.slip_id.employee_id].update({line.slip_id: []})
+            employees[line.slip_id.employee_id][line.slip_id].append(line)
+            
+            #employees[line.slip_id.employee_id].add(line)
+            
+            #employee_payslip[line.slip_id.employee_id].add(line.slip_id)
+        year = self.date_to.year
+        d1 = datetime(year, 1, 1)
+        d2 = datetime(year + 1, 1, 1)
+        days_year = (d2 - d1).days 
+
+        tipo_nomina = {'O':'Nómina ordinaria', 'E':'Nómina extraordinaria'}
+        for employee, payslips in employees.items():
+            total_gravado = 0
+            dias_periodo = 0
+            contrato = employee.contract_id[0]
+            factor_aguinaldo = 15.0/days_year
+            aguinaldo = contrato.sueldo_diario * factor_aguinaldo
+            dia_hoy =  self.date_to + timedelta(days=1)
+            dias_antiguedad = dia_hoy - contrato.date_start
+            dias_anos = dias_antiguedad.days / days_year
+            if dias_anos < 1.0: 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad >= dias_anos).sorted(key=lambda x:x.antiguedad) 
+            else: 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= dias_anos).sorted(key=lambda x:x.antiguedad, reverse=True) 
+            tablas_cfdi_line = tablas_cfdi_lines[0]
+            vacaciones = self.dias_vac(dias_anos)
+            dias_pv = vacaciones * tablas_cfdi_line.prima_vac/100.0
+            monto_pv = dias_pv * contrato.sueldo_diario
+            pv_x_dia = monto_pv / days_year
+            sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
+            uma = contrato.tablas_cfdi_id.uma * 30
+            msbc = contrato.sueldo_base_cotizacion * 30
+
+            total_by_rule = defaultdict(lambda: 0.0)
+            total_by_rule1 = defaultdict(lambda: 0.0)
+            total_by_rule2 = defaultdict(lambda: 0.0)
+            for payslip,lines in payslips.items():
+                for line in lines:
+                    total_by_rule[line.salary_rule_id.id] += line.total
+                    if payslip.date_to < primer_dia:
+                        total_by_rule1[line.salary_rule_id.id] += line.total
+#                        _logger.info("total1: %s", total_by_rule1[line.salary_rule_id.id])
+                    else:
+                        total_by_rule2[line.salary_rule_id.id] += line.total
+#                        _logger.info("total2: %s", total_by_rule2[line.salary_rule_id.id])
+
+            for rule_id, total in total_by_rule.items():
+                #sacamos calculo exento y grvado dependiendo de opción en regla salarial
+                regla = self.env['hr.salary.rule'].search([('id', '=', rule_id)])
+                if regla.variable_imss_tipo == '001':  # Monto total
+                   total_gravado  += total
+                elif regla.variable_imss_tipo == '002': # Pct de UMA
+                   tot_exento = uma * regla.variable_imss_monto/100
+                   bimestre_exento = 0
+                   bimestre_gravado = 0
+                   if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        if total_by_rule1[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule1[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule1[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule1[rule_id]
+                   if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        if total_by_rule2[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule2[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule2[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule2[rule_id]
+                else:   # Pct de SBC
+                   tot_exento = msbc * regla.variable_imss_monto/100
+                   bimestre_exento = 0
+                   bimestre_gravado = 0
+                   if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        if total_by_rule1[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule1[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule1[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule1[rule_id]
+                   if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        if total_by_rule2[rule_id] > tot_exento:
+                           total_gravado  += total_by_rule2[rule_id]-tot_exento
+                           bimestre_gravado += total_by_rule2[rule_id]-tot_exento
+                           bimestre_exento += tot_exento
+                        else:
+                           bimestre_exento += total_by_rule2[rule_id]
+
+            #dias del periodo, calcula dias de todas las nóminas no solo las que aparecen con gravados
+            new_domain=[('state','=', 'done')]
+            new_domain.append(('date_from','>=',self.date_from))
+            new_domain.append(('date_to','<=',self.date_to))
+            new_domain.append(('employee_id','=',employee.id))
+            payslips_days = self.env['hr.payslip'].search(new_domain)
+            for pay_day in payslips_days:
+                if pay_day.tipo_nomina == 'O':
+                   for workline in pay_day.worked_days_line_ids:
+                       if workline.code == 'WORK100' or workline.code == 'FJC':
+                           dias_periodo += workline.number_of_days
+
+            #poner totales
+            sbc = sdi + total_gravado/dias_periodo
+            if employee.contract_ids:
+                    employee.contract_ids[0].write({
+                                                    'sueldo_base_cotizacion' : sbc,
+                                                    })
+                    incidencia = self.env['incidencias.nomina'].create({'tipo_de_incidencia':'Cambio salario', 'employee_id': employee.id, 'fecha': date.today(),
+                                                                   'sueldo_mensual': employee.contract_ids[0].wage,  'sueldo_diario': employee.contract_ids[0].sueldo_diario,
+                                                                   'sueldo_diario_integrado': employee.contract_ids[0].sueldo_diario_integrado, 'sueldo_por_horas' : employee.contract_ids[0].sueldo_hora, 
+                                                                   'sueldo_cotizacion_base': sbc
+                                                                   })
+                    incidencia.action_validar()
+        return True
+
         
     
     
