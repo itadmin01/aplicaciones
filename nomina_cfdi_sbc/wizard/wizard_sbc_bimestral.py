@@ -67,9 +67,10 @@ class CalculoSBC(models.TransientModel):
 
         if self.employee_id:
             domain.append(('employee_id','=',self.employee_id.id))
-        #if not self.employee_id and self.department_id:
-        #    employees = self.env['hr.employee'].search([('department_id', '=', self.department_id.id)])
-        #    domain.append(('employee_id','in',employees.ids))
+     
+        if self.registro_patronal:
+            employee = self.env['hr.employee'].search([('registro_patronal', '=', self.registro_patronal)])
+            domain.append(('employee_id', '=', employee.ids))
 
         payslips = self.env['hr.payslip'].search(domain)
         rules = self.env['hr.salary.rule'].search([('variable_imss', '=', True)])
@@ -307,9 +308,10 @@ class CalculoSBC(models.TransientModel):
 
         if self.employee_id:
             domain.append(('employee_id','=',self.employee_id.id))
-        #if not self.employee_id and self.department_id:
-        #    employees = self.env['hr.employee'].search([('department_id', '=', self.department_id.id)])
-        #    domain.append(('employee_id','in',employees.ids))
+
+        if self.registro_patronal:
+            employee = self.env['hr.employee'].search([('registro_patronal', '=', self.registro_patronal)])
+            domain.append(('employee_id', '=', employee.ids))
 
         payslips = self.env['hr.payslip'].search(domain)
         rules = self.env['hr.salary.rule'].search([('variable_imss', '=', True)])
