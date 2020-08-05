@@ -270,11 +270,14 @@ class CalculoSBC(models.TransientModel):
                            dias_periodo += workline.number_of_days
 
             #poner totales
-            worksheet.write(init_row, 18, dias_periodo)
+            resultado = round(sdi + total_gravado/dias_periodo,2)
+            if resultado > 25 * contrato.tablas_cfdi_id.uma:
+               resultado = 25 * contrato.tablas_cfdi_id.uma
+            worksheet.write(init_row, 18, int(round(dias_periodo)))
             worksheet.write(init_row, tot_col, total_gravado)
             if dias_periodo != 0:
               worksheet.write(init_row, tot_col+1, round(total_gravado/dias_periodo,2))
-              worksheet.write(init_row, tot_col+2, round(sdi + total_gravado/dias_periodo,2))
+              worksheet.write(init_row, tot_col+2, resultado)
             row +=1
                 
 #        worksheet.write(row,7,xlwt.Formula("SUM($H$3:$H$%d)/2"%(row)), style)
