@@ -124,16 +124,25 @@ class CalculoSBC(models.TransientModel):
         #employees = defaultdict(dict)
         #employee_payslip = defaultdict(set)
         employees = {}
+        new_employees = []
         for line in payslip_lines:
             if line.slip_id.employee_id not in employees:
                 employees[line.slip_id.employee_id] = {line.slip_id: []}
             if line.slip_id not in employees[line.slip_id.employee_id]:
                 employees[line.slip_id.employee_id].update({line.slip_id: []})
             employees[line.slip_id.employee_id][line.slip_id].append(line)
-            
-            #employees[line.slip_id.employee_id].add(line)
-            
-            #employee_payslip[line.slip_id.employee_id].add(line.slip_id)
+
+        if employees:
+            employee_ids = self.env['hr.employee'].search([('active', '=', 'True')])
+            for empleado in employee_ids:
+               no_encontrado = True
+               for employee, payslips in employees.items():
+                  if employee.id == empleado.id:
+                     no_encontrado = False
+               if no_encontrado:
+                   #_logger.info('agregar %s', empleado.name)
+                   new_employees.append(empleado)
+
         year = self.date_to.year
         d1 = datetime(year, 1, 1)
         d2 = datetime(year + 1, 1, 1)
@@ -145,6 +154,8 @@ class CalculoSBC(models.TransientModel):
             init_row = row
             total_gravado = 0
             dias_periodo = 0
+            if not employee.contract_id:
+                continue
             contrato = employee.contract_id[0]
             factor_aguinaldo = 15.0/days_year
             aguinaldo = contrato.sueldo_diario * factor_aguinaldo
@@ -281,8 +292,46 @@ class CalculoSBC(models.TransientModel):
             row +=1
                 
 #        worksheet.write(row,7,xlwt.Formula("SUM($H$3:$H$%d)/2"%(row)), style)
+        for empleado2 in new_employees:
+            if not empleado2.contract_id:
+                continue
+            contrato = empleado2.contract_id[0]
+            factor_aguinaldo = 15.0/days_year
+            aguinaldo = contrato.sueldo_diario * factor_aguinaldo
+            dia_hoy =  self.date_to + timedelta(days=1)
+            dias_antiguedad = dia_hoy - contrato.date_start
+            dias_anos = dias_antiguedad.days / days_year
+            if dias_anos < 1.0: 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad >= dias_anos).sorted(key=lambda x:x.antiguedad) 
+            else: 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= dias_anos).sorted(key=lambda x:x.antiguedad, reverse=True)
+            tablas_cfdi_line = tablas_cfdi_lines[0]
+            vacaciones = self.dias_vac(dias_anos)
+            dias_pv = vacaciones * tablas_cfdi_line.prima_vac/100.0
+            monto_pv = dias_pv * contrato.sueldo_diario
+            pv_x_dia = monto_pv / days_year
+            sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
+            uma = contrato.tablas_cfdi_id.uma * 30
+            msbc = contrato.sueldo_base_cotizacion * 30
+            worksheet.write(row, 0, empleado2.name)
+            worksheet.write(row, 1, empleado2.segurosocial)
+            worksheet.write(row, 2, empleado2.rfc)
+            worksheet.write(row, 3, empleado2.curp)
+            worksheet.write(row, 4, contrato.date_start)
+            worksheet.write(row, 5, contrato.department_id.name)
+            worksheet.write(row, 6, contrato.sueldo_diario)
+            worksheet.write(row, 7, round(factor_aguinaldo,6))
+            worksheet.write(row, 8, round(aguinaldo,4))
+            worksheet.write(row, 9, dia_hoy)
+            worksheet.write(row, 10, dias_antiguedad.days)
+            worksheet.write(row, 11, round(dias_anos,2))
+            worksheet.write(row, 12, vacaciones)
+            worksheet.write(row, 13, dias_pv)
+            worksheet.write(row, 14, round(monto_pv,4))
+            worksheet.write(row, 15, round(pv_x_dia,4))
+            worksheet.write(row, 16, round(sdi,4))
+            row +=1
 
-                
         fp = io.BytesIO()
         workbook.save(fp)
         fp.seek(0)
