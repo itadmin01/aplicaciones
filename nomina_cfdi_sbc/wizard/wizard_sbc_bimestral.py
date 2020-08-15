@@ -277,7 +277,7 @@ class CalculoSBC(models.TransientModel):
             for pay_day in payslips_days:
                 if pay_day.tipo_nomina == 'O':
                    for workline in pay_day.worked_days_line_ids:
-                       if workline.code == 'WORK100' or workline.code == 'FJC':
+                       if workline.code == 'WORK100' or workline.code == 'FJC' or workline.code == 'P025':
                            dias_periodo += workline.number_of_days
 
             #poner totales
