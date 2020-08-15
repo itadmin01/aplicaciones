@@ -7,7 +7,7 @@
     Modificaciones del cálculo del SDI
     ''',
     'author': 'IT Admin',
-    'version': '13.02',
+    'version': '13.03',
     'category': 'Employees',
     'depends': [
         'nomina_cfdi_ee',

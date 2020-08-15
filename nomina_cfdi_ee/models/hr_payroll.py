@@ -172,6 +172,9 @@ class HrPayslip(models.Model):
     acum_isr_antes_subem_anual  = fields.Float('ISR antes de SUBEM (anual)', compute='_get_acumulados_anual')
     acum_subsidio_aplicado_anual  = fields.Float('Subsidio aplicado (anual)', compute='_get_acumulados_anual')
     isr_anual = fields.Boolean(string='ISR anual')
+    acum_dev_isr  = fields.Float('Devolución ISR (anual)', compute='_get_acumulados_anual')
+    acum_dev_subem  = fields.Float('Ajuste al SUBEM (anual)', compute='_get_acumulados_anual')
+    acum_dev_subem_entregado  = fields.Float('Ajuste al SUBEM entregado (anual)', compute='_get_acumulados_anual')
 
     mes = fields.Selection(
         selection=[('01', 'Enero'), 
@@ -659,6 +662,8 @@ class HrPayslip(models.Model):
             if date_end:
                 domain.append(('date_to','<=',date_end))
             domain.append(('employee_id','=',self.employee_id.id))
+            if not self.contract_id.calc_isr_extra:
+               domain.append(('tipo_nomina','=','O'))
             rules = self.env['hr.salary.rule'].search([('code', '=', codigo)])
             payslips = self.env['hr.payslip'].search(domain)
             payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
@@ -678,7 +683,7 @@ class HrPayslip(models.Model):
 
     def acumulado_anual(self, codigo):
         total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
+        if self.employee_id and self.contract_id.tablas_cfdi_id:
             #mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
             date_start = date(fields.Date.from_string(self.date_from).year, 1, 1)
             date_end = date(fields.Date.from_string(self.date_from).year, 12, 31)
@@ -715,12 +720,16 @@ class HrPayslip(models.Model):
          self.acum_per_grav = self.acumulado_mes('TPERG')
          self.acum_isr = self.acumulado_mes('ISR2')
 
-    @api.onchange('mes')
+    @api.onchange('isr_anual')
     def _get_acumulados_anual(self):
          self.acum_subsidio_aplicado_anual = self.acumulado_anual('SUB')
          self.acum_isr_antes_subem_anual = self.acumulado_anual('ISR')
          self.acum_per_grav_anual = self.acumulado_anual('TPERG')
          self.acum_isr_anual = self.acumulado_anual('ISR2')
+         self.acum_dev_isr = self.acumulado_anual('O007')
+         self.acum_dev_subem = self.acumulado_anual('D061')
+         self.acum_dev_subem_entregado = self.acumulado_anual('D062')
+
 
     @api.model
     def to_json(self):
