@@ -42,8 +42,8 @@ class HrPayslipEmployeesExt(models.TransientModel):
                 #Added
                 'tipo_nomina' : payslip_batch.tipo_nomina,
                 'fecha_pago' : payslip_batch.fecha_pago,
-                'proyeccion' : payslip_batch.proyeccion,
                 #'journal_id': payslip_batch.journal_id.id
+                'proyeccion':payslip_batch.proyeccion,
             }
             if other_inputs and res.get('contract_id'):
                 contract_id = res.get('contract_id')
@@ -60,6 +60,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                             'isr_devolver': payslip_batch.isr_devolver,
                             'isr_ajustar': payslip_batch.isr_ajustar,
                             'isr_anual': payslip_batch.isr_anual,
+                            'proyeccion' : payslip_batch.proyeccion,
                             'concepto_periodico': payslip_batch.concepto_periodico})
 
             payslips += self.env['hr.payslip'].create(res)
