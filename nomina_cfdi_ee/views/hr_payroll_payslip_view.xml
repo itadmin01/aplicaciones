@@ -61,6 +61,7 @@
                                 <field name="acum_dev_isr" />
                                 <field name="acum_dev_subem" />
                                 <field name="acum_dev_subem_entregado" />
+                                <field name="acum_isr_ajuste" />
                             </group>
                         </group>
                 </page>

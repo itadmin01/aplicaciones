@@ -175,6 +175,7 @@ class HrPayslip(models.Model):
     acum_dev_isr  = fields.Float('Devolución ISR (anual)', compute='_get_acumulados_anual')
     acum_dev_subem  = fields.Float('Ajuste al SUBEM (anual)', compute='_get_acumulados_anual')
     acum_dev_subem_entregado  = fields.Float('Ajuste al SUBEM entregado (anual)', compute='_get_acumulados_anual')
+    acum_isr_ajuste  = fields.Float('Ajuste ISR (anual)', compute='_get_acumulados_anual')
 
     mes = fields.Selection(
         selection=[('01', 'Enero'), 
@@ -729,7 +730,7 @@ class HrPayslip(models.Model):
          self.acum_dev_isr = self.acumulado_anual('O007')
          self.acum_dev_subem = self.acumulado_anual('D061')
          self.acum_dev_subem_entregado = self.acumulado_anual('D062')
-
+         self.acum_isr_ajuste = self.acumulado_anual('D060')
 
     @api.model
     def to_json(self):
