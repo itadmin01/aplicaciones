@@ -17,5 +17,4 @@
     "active": True,
     "installable": True,
     'currency': 'EUR',
-    'price': 99.00,
 }
