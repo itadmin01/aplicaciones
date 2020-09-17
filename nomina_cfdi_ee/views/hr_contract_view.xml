@@ -23,7 +23,7 @@
                  <group>
                     <field name="tipo_pago" attrs="{'invisible':[('periodicidad_pago','not in',['04', '05'])]}" />
                     <field name="tipo_prima_vacacional" />
-                    <field name="sept_dia" />
+                    <field name="sept_dia" attrs="{'invisible' : [('periodicidad_pago','!=','02')]}"/>
                     <field name="septimo_dia" />
                     <field name="incapa_sept_dia" />
                     <field name="semana_inglesa" attrs="{'invisible':[('periodicidad_pago','!=','02')]}"/>
@@ -53,6 +53,7 @@
                                 <field name="infonavit_vsm"/>
                                 <field name="infonavit_porc"/>
                                 <field name="pens_alim"/>
+                                <field name="pens_alim_fijo"/>
                                 <field name="prestamo_fonacot"/>
                                 <field name="caja_ahorro"/>
                                 <field name="caja_ahorro_amount" attrs="{'invisible':[('caja_ahorro','=',False)]}"/>

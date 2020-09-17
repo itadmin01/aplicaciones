@@ -58,6 +58,7 @@ class Contract(models.Model):
     infonavit_porc = fields.Float(string=_('Infonavit (%)'), digits = (12,4))
     prestamo_fonacot = fields.Float('Prestamo FONACOT')
     pens_alim = fields.Float('Pensión alimienticia (%)')
+    pens_alim_fijo = fields.Float('Pensión alimienticia (fijo)')
     caja_ahorro  = fields.Boolean('Caja de ahorro')
     caja_ahorro_amount  = fields.Float('Monto caja de ahorro')
     deduccion_adicional  = fields.Boolean('Deduccion adicional')
