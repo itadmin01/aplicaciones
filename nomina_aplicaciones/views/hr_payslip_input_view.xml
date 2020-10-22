@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+	<record id="view_hr_payslip_form_inhe" model="ir.ui.view">
+	    <field name="name">view.hr.payslip.form.inhe</field>
+	    <field name="model">hr.payslip</field>
+	    <field name="inherit_id" ref="om_hr_payroll.view_hr_payslip_form"/>
+	    <field name="arch" type="xml">
+	       <xpath expr="//notebook/page/field[@name='input_line_ids']/tree/field[@name='name']" position="before">
+	           <field name="salary_rule_id"/>
+	       </xpath>
+	       <xpath expr="//notebook/page/field[@name='input_line_ids']/form/group/field[@name='name']" position="before">
+	           <field name="salary_rule_id"/>
+	       </xpath>
+	     </field>
+	</record>
+</odoo>

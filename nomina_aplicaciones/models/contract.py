@@ -62,3 +62,22 @@ class Contract(models.Model):
         else: 
             sueldo_diario_integrado = 0
         return sueldo_diario_integrado
+
+    @api.onchange('wage')
+    def compute_vale_despensa(self):
+        total = 0
+        if self.wage and self.tablas_cfdi_id:
+            exento = self.tablas_cfdi_id.imss_mes * self.tablas_cfdi_id.uma
+            if self.wage < 13500:
+                if self.job_id.name == 'Operador de Tienda' or self.job_id.name == 'Gerente de Sucursal':
+                    total = self.wage * 0.10
+                else:
+                    total = 1350
+            elif self.wage > 13500 and self.wage < exento:
+                total = self.wage * 0.10
+            elif self.wage > 26409:
+                total = exento
+        values = {
+            'vale_despensa_amount': total,
+            }
+        self.update(values)

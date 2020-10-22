@@ -7,13 +7,14 @@
     Modificaciones del cálculo del SDI
     ''',
     'author': 'IT Admin',
-    'version': '13.04',
+    'version': '13.05',
     'category': 'Employees',
     'depends': [
-        'nomina_cfdi_ee',
+        'om_hr_payroll', 'nomina_cfdi_ee', 'nomina_cfdi_extras_ee',
     ],
     'data': [
         'views/hr_payroll_payslip_view.xml',
+        'views/hr_payslip_input_view.xml',
     ],
     'installable': True,
     'application': False,
