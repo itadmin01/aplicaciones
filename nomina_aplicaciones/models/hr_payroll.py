@@ -6,6 +6,11 @@ from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 
+class HrSalaryRule(models.Model):
+    _inherit = 'hr.salary.rule'
+    dias_laborados = fields.Boolean(string='Dias laborados')
+    otras_entradas = fields.Boolean(string='Otras entradas')
+
 class HrPayslip(models.Model):
     _name = "hr.payslip"
     _inherit = ['hr.payslip','mail.thread']

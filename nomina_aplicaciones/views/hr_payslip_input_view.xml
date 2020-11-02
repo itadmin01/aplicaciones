@@ -6,11 +6,34 @@
 	    <field name="inherit_id" ref="om_hr_payroll.view_hr_payslip_form"/>
 	    <field name="arch" type="xml">
 	       <xpath expr="//notebook/page/field[@name='input_line_ids']/tree/field[@name='name']" position="before">
-	           <field name="salary_rule_id"/>
+	           <field name="salary_rule_id" options="{'no_create_edit' : True, 'no_create': True, 'no_open': True}" domain="[('otras_entradas','=',True)]"/>
 	       </xpath>
 	       <xpath expr="//notebook/page/field[@name='input_line_ids']/form/group/field[@name='name']" position="before">
-	           <field name="salary_rule_id"/>
+	           <field name="salary_rule_id" options="{'no_create_edit' : True, 'no_create': True, 'no_open': True}"  domain="[('otras_entradas','=',True)]"/>
 	       </xpath>
+
+	       <xpath expr="//notebook/page/field[@name='worked_days_line_ids']/tree/field[@name='name']" position="before">
+	           <field name="salary_rule_id" options="{'no_create_edit' : True, 'no_create': True, 'no_open': True}"
+					   domain="[('dias_laborados','=',True)]"/>
+	       </xpath>
+	       <xpath expr="//notebook/page/field[@name='worked_days_line_ids']/form/group/field[@name='name']" position="before">
+	           <field name="salary_rule_id"  options="{'no_create_edit' : True, 'no_create': True, 'no_open': True}"
+					   domain="[('dias_laborados','=',True)]"/>
+	       </xpath>
+
 	     </field>
 	</record>
+
+        <record id="hr_salary_rule_entradas" model="ir.ui.view">
+            <field name="name">hr.salary.rule.entradas</field>
+            <field name="model">hr.salary.rule</field>
+            <field name="inherit_id" ref="om_hr_payroll.hr_salary_rule_form"/>
+            <field name="arch" type="xml">
+                 <field name="appears_on_payslip" position="after">
+                    <field name="dias_laborados" />
+                    <field name="otras_entradas" />
+                 </field>
+            </field>
+        </record>
+
 </odoo>
