@@ -7,7 +7,7 @@
     Modificaciones del cálculo del SDI
     ''',
     'author': 'IT Admin',
-    'version': '13.06',
+    'version': '13.07',
     'category': 'Employees',
     'depends': [
         'om_hr_payroll', 'nomina_cfdi_ee', 'nomina_cfdi_extras_ee',
