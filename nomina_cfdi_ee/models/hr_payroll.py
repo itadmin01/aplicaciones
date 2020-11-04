@@ -193,6 +193,7 @@ class HrPayslip(models.Model):
                    ],
         string=_('Mes de la nómina'))
     nom_liquidacion = fields.Boolean(string='Nomina de liquidacion', default=False)
+    dias_infonavit = fields.Float('Días INFONAVIT')
 
     @api.model
     def get_worked_day_lines(self, contracts, date_from, date_to):

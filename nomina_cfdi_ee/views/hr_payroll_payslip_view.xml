@@ -37,6 +37,7 @@
                             <group string="Dias">
                                 <field name="dias_pagar"/>
                                 <field name="imss_dias"/>
+                                <field name="dias_infonavit"/>
                             </group>
                             <group string="Procesamiento">
                                 <field name="concepto_periodico"/>

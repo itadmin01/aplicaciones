@@ -87,7 +87,11 @@ class GeneraLiquidaciones(models.TransientModel):
         worked_days.append((0,0,{'name' :'Dias a pagar', 'code' : 'WORK100', 'contract_id':contract_id, 'number_of_days': self.dias_pendientes_pagar}))
 
         payslip_vals['input_line_ids']=[(0,0, {'name':'Fondo ahorro', 'code': 'PFA', 'amount': self.fondo_ahorro, 'contract_id':contract_id})]
-        
+        if self.dias_pendientes_pagar == 0:
+             dias_pagar = 1
+        else:
+             dias_pagar = self.dias_pendientes_pagar
+
         payslip_vals.update({
             'employee_id' : employee.id,
             'worked_days_line_ids' : worked_days,
@@ -99,7 +103,7 @@ class GeneraLiquidaciones(models.TransientModel):
             'no_nomina': '1',
             'fecha_pago' : date_to,
             'mes': str(date_to.month).zfill(2),
-            'dias_pagar': self.dias_pendientes_pagar,
+            'dias_pagar': dias_pagar,
             'imss_dias': self.dias_pendientes_pagar,
             'nom_liquidacion': True
              #'input_line_ids': [(0, 0, x) for x in payslip_vals.get('input_line_ids',[])],
