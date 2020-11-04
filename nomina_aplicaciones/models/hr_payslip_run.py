@@ -8,6 +8,7 @@ class HrPayslipRun(models.Model):
     _inherit = 'hr.payslip.run'
     
     proyeccion = fields.Boolean(string='Proyeccion')
+    periodo_anterior = fields.Many2one('hr.payslip.run', string='Periodo anterior')
     
     def genera_prenomina(self):
         periodicidad = self.periodicidad_pago

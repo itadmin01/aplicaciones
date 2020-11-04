@@ -2,6 +2,10 @@
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+import babel
+from datetime import date, datetime, time
+from dateutil.relativedelta import relativedelta
+from pytz import timezone
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -19,6 +23,7 @@ class HrPayslip(models.Model):
     percepcion_gravada_proyectado = fields.Float('Percepción gravada', default=0)
     proyeccion = fields.Boolean(string='Proyeccion')
     gratificacion = fields.Boolean(string='Gratificacion')
+    periodo_anterior = fields.Many2one('hr.payslip.run', string='Periodo anterior')
 
     def proyectado(self):
        perc1 = self.percepciones_gratificacion()

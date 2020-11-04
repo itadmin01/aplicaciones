@@ -16,6 +16,9 @@
                           <button name="proyectado"
                               string="Calcular estimación" type="object" class="oe_edit_only oe_inline oe_highlight" style="margin-left: 10px;"/>
                      </group>
+                     <group name="anterior" string="Nomina anterior">
+                          <field name="periodo_anterior"/>
+                     </group>
                </xpath>
              
              </field>
@@ -42,5 +45,17 @@
 	        	</xpath>
 	        </field>
 	    </record>
+
+      <record id="hr_payslip_run_perido_anterior" model="ir.ui.view">
+            <field name="name">hr.payslip.run.periodo.anterior</field>
+            <field name="model">hr.payslip.run</field>
+            <field name="priority">50</field>
+            <field name="inherit_id" ref="attendance_report.hr_payslip_run_form_asistencia"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group[@name='asistencia']" position="inside">
+                     <field name="periodo_anterior" />
+                </xpath>
+            </field>
+       </record> 
 
 </odoo>

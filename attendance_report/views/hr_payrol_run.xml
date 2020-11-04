@@ -8,7 +8,7 @@
             <field name="inherit_id" ref="nomina_cfdi_ee.hr_payslip_run_form_nomina_cfdi"/>
             <field name="arch" type="xml">
                 <xpath expr="/form/sheet/notebook/page[1]/group[2]" position="inside">
-                                  <group string="Asistencia">
+                                  <group string="Asistencia" name="asistencia">
                                        <field name="reporte_asistencia" />
                                  </group>
                 </xpath>
