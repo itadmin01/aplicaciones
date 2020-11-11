@@ -78,7 +78,7 @@ class hr_payslip(models.Model):
                         amount += installment.installment_amt
                         int_amount += installment.ins_interest
             payslip.descuento1_amount = amount
-            payslip.descuento2_int = int_amount
+            payslip.descuento1_int = int_amount
 
     @api.depends('installment_ids')
     def get_descuento2_amount(self):
