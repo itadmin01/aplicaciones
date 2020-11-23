@@ -224,14 +224,14 @@ class HrPayslipRun(models.Model):
         return result
 
   
-    def get_payslip_group_by_department(self):
-        result = {}
-        for line in self.slip_ids:
-            if line.employee_id.department_id.id in result.keys():
-                result[line.employee_id.department_id.id].append(line)
-            else:
-                result[line.employee_id.department_id.id] = [line]
-        return result
+#     def get_payslip_group_by_department(self):
+#         result = {}
+#         for line in self.slip_ids:
+#             if line.employee_id.department_id.id in result.keys():
+#                 result[line.employee_id.department_id.id].append(line)
+#             else:
+#                 result[line.employee_id.department_id.id] = [line]
+#         return result
     
 class HrPayslip(models.Model):
     _inherit = 'hr.payslip'

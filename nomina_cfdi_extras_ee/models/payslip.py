@@ -80,7 +80,23 @@ class PayslipBatches(models.Model):
     
     def get_payslip_group_by_department(self):
         result = {}
-        for line in self.slip_ids:
+        start_range = self._context.get('start_range')
+        end_range = self._context.get('end_range')
+        if start_range and end_range:
+            slips = self.env['hr.payslip'].browse()
+            for slip in self.slip_ids:
+                try:
+                    emp_no = eval(slip.employee_id.no_empleado)
+                except Exception as e:
+                    continue
+                if type(emp_no) not in (float,int):
+                    continue
+                if emp_no >= start_range and emp_no <= end_range:
+                    slips += slip
+            
+        else:
+            slips = self.slip_ids
+        for line in slips:
             if line.employee_id.department_id.id in result.keys():
                 result[line.employee_id.department_id.id].append(line)
             else:
@@ -91,8 +107,24 @@ class PayslipBatches(models.Model):
     def get_all_columns(self):
         result = {}
         all_col_list_seq = []
+        start_range = self._context.get('start_range')
+        end_range = self._context.get('end_range')
         if self.slip_ids:
-            for line in self.env['hr.payslip.line'].search([('slip_id', 'in', self.slip_ids.ids)], order="sequence"):
+            if start_range and end_range:
+                slips = self.env['hr.payslip'].browse()
+                for slip in self.slip_ids:
+                    try:
+                        emp_no = eval(slip.employee_id.no_empleado)
+                    except Exception as e:
+                        continue
+                    if type(emp_no) not in (float,int):
+                        continue
+                    if emp_no >= start_range and emp_no <= end_range:
+                        slips += slip
+                
+            else:
+                slips = self.slip_ids
+            for line in slips.mapped('line_ids'): #self.env['hr.payslip.line'].search([('slip_id', 'in', self.slip_ids.ids)], order="sequence"):
                 if line.code not in all_col_list_seq:
                     all_col_list_seq.append(line.code)
                 if line.code not in result.keys():
@@ -103,7 +135,22 @@ class PayslipBatches(models.Model):
 #                     result[line.code] = line.name
         return [result, all_col_list_seq]
 
-   
+    def export_report_xlsx_button(self):
+        view = self.env.ref('nomina_cfdi_extras_ee.listado_de_monin_wizard')
+        ctx = self.env.context.copy()
+        ctx .update({'default_payslip_batch_id':self.id})
+        return {
+            'name': 'Listado De Nomina',
+            'type': 'ir.actions.act_window',
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_model': 'listado.de.monina',
+            'views': [(view.id, 'form')],
+            'view_id': view.id,
+            'target': 'new',
+            'context': ctx,
+        }
+       
     def export_report_xlsx(self):
         import base64
         workbook = xlwt.Workbook()
@@ -117,6 +164,7 @@ class PayslipBatches(models.Model):
         worksheet.write(0, 1, 'Empleado', header_style)
         worksheet.write(0, 2, 'Dias Pag', header_style)
         col_nm = 3
+        
         all_column = self.get_all_columns()
         all_col_dict = all_column[0]
         all_col_list = all_column[1]
@@ -127,28 +175,27 @@ class PayslipBatches(models.Model):
             worksheet.write(0, col_nm, t, header_style)
             col_nm += 1
         
-        #payslip_group_by_department = self.get_payslip_group_by_department()
-        row = 0
+        payslip_group_by_department = self.get_payslip_group_by_department()
+        row = 1
         grand_total = {}
-      #  for dept in self.env['hr.department'].browse(payslip_group_by_department.keys()).sorted(lambda x:x.name):
-      #      row += 1
-         #   worksheet.write_merge(row, row, 0, 2, dept.name, text_bold_left)
-         #   total = {}
-         #   row += 1
-         #   slip_sorted_by_employee={}
-         #   hr_payslips=[]
-         #   for slip in payslip_group_by_department[dept.id]:
-         #       if slip.employee_id:
-         #           slip_sorted_by_employee[slip.id]=slip.employee_id.no_empleado or '0'
-         #   for values in sorted(slip_sorted_by_employee.values()):
-         #       val_list = list(slip_sorted_by_employee.values())
-         #       key_list = list(slip_sorted_by_employee.keys())
-         #       slip = key_list[val_list.index(values)]  
-        hr_payslips = self.env['hr.payslip'].search([('payslip_run_id', '=', self.id)])
-        for slip in hr_payslips:
+        for dept in self.env['hr.department'].browse(payslip_group_by_department.keys()).sorted(lambda x:x.name):
+            row += 1
+            worksheet.write_merge(row, row, 0, 2, dept.name, text_bold_left)
+            total = {}
+            row += 1
+            slip_sorted_by_employee={}
+            hr_payslips=[]
+            for slip in payslip_group_by_department[dept.id]:
+                if slip.employee_id:
+                    slip_sorted_by_employee[slip.id]=slip.employee_id.no_empleado or '0'
+            for values in sorted(slip_sorted_by_employee.values()):
+                val_list = list(slip_sorted_by_employee.values())
+                key_list = list(slip_sorted_by_employee.keys())
+                slip = key_list[val_list.index(values)]  
+                hr_payslips.append(self.env['hr.payslip'].browse(slip))
+            for slip in hr_payslips:
                 if slip.state == "cancel":
                     continue
-                row += 1
                 if slip.employee_id.no_empleado:
                     worksheet.write(row, 0, slip.employee_id.no_empleado, text_left)
                 worksheet.write(row, 1, slip.employee_id.name, text_left)
@@ -157,35 +204,35 @@ class PayslipBatches(models.Model):
                 code_col = 3
                 for code in all_col_list:
                     amt = 0
-                   # if code in total.keys():
-                    amt = slip.get_amount_from_rule_code(code)
-                   #     if amt:
-                   #         grand_total[code] = grand_total.get(code) + amt
-                   #         total[code] = total.get(code) + amt
-                   # else:
-                   #     amt = slip.get_amount_from_rule_code(code)
-                   #     total[code] = amt or 0
-                   #     if code in grand_total.keys():
-                   #         grand_total[code] = amt + grand_total.get(code) or 0.0
-                   #     else:
-                   #         grand_total[code] = amt or 0
+                    if code in total.keys():
+                        amt = slip.get_amount_from_rule_code(code)
+                        if amt:
+                            grand_total[code] = grand_total.get(code) + amt
+                            total[code] = total.get(code) + amt
+                    else:
+                        amt = slip.get_amount_from_rule_code(code)
+                        total[code] = amt or 0
+                        if code in grand_total.keys():
+                            grand_total[code] = amt + grand_total.get(code) or 0.0
+                        else:
+                            grand_total[code] = amt or 0
                     worksheet.write(row, code_col, amt, text_right)
                     code_col += 1
                 worksheet.write(row, code_col, slip.get_total_code_value('001'), text_right)
                 code_col += 1
                 worksheet.write(row, code_col, slip.get_total_code_value('002'), text_right)
-               # row += 1
-            #worksheet.write_merge(row, row, 0, 2, 'Total Departamento', text_bold_left)
-            #code_col = 3
-            #for code in all_col_list:
-            #    worksheet.write(row, code_col, total.get(code), text_bold_right)
-            #    code_col += 1
-        #row += 1
-        #worksheet.write_merge(row, row, 0, 2, 'Gran Total', text_bold_left)
-        #code_col = 3
-        #for code in all_col_list:
-        #    worksheet.write(row, code_col, grand_total.get(code), text_bold_right)
-        #    code_col += 1
+                row += 1
+            worksheet.write_merge(row, row, 0, 2, 'Total Departamento', text_bold_left)
+            code_col = 3
+            for code in all_col_list:
+                worksheet.write(row, code_col, total.get(code), text_bold_right)
+                code_col += 1
+        row += 1
+        worksheet.write_merge(row, row, 0, 2, 'Gran Total', text_bold_left)
+        code_col = 3
+        for code in all_col_list:
+            worksheet.write(row, code_col, grand_total.get(code), text_bold_right)
+            code_col += 1
 
         fp = io.BytesIO()
         workbook.save(fp)
