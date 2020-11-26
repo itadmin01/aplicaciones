@@ -121,10 +121,9 @@ class PayslipBatches(models.Model):
                         continue
                     if emp_no >= start_range and emp_no <= end_range:
                         slips += slip
-                
             else:
                 slips = self.slip_ids
-            for line in slips.mapped('line_ids'): #self.env['hr.payslip.line'].search([('slip_id', 'in', self.slip_ids.ids)], order="sequence"):
+            for line in slips.mapped('line_ids').sorted(lambda x:x.sequence):
                 if line.code not in all_col_list_seq:
                     all_col_list_seq.append(line.code)
                 if line.code not in result.keys():
