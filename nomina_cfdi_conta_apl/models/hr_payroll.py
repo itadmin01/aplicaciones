@@ -1,0 +1,174 @@
+# -*- coding: utf-8 -*-
+
+from odoo import api, fields, models, _
+from odoo.tools import float_compare, float_is_zero
+from odoo.exceptions import UserError
+from odoo.addons.om_hr_payroll_account.models.hr_payroll_account import HrPayslip
+
+class HrPayslipContaEE(models.Model):
+    _inherit = 'hr.payslip'
+    
+#     @api.multi
+    def action_payslip_done(self):
+        #res = super(HrPayslip, self).action_payslip_done()
+        tipo_de_poliza = self.env['ir.config_parameter'].sudo().get_param('nomina_cfdi_conta_apl.tipo_de_poliza')
+        if tipo_de_poliza=='Por nómina':
+            payslips_with_batch = self.filtered(lambda x:x.payslip_run_id)
+            payslips_without_batch = self - payslips_with_batch
+            if payslips_without_batch:
+                res = super(HrPayslipContaEE, payslips_without_batch).action_payslip_done()
+                if not payslips_with_batch:
+                    return res
+            if payslips_with_batch:
+                return super(HrPayslip, payslips_with_batch).action_payslip_done()
+        else:
+            return super(HrPayslipContaEE, self).action_payslip_done()
+        
+    
+class HrPayslipRun(models.Model):
+    _inherit = 'hr.payslip.run'
+    
+    #@api.depends('slip_ids', 'slip_ids.state')
+    
+#     @api.multi
+    def _compute_is_all_payslip_done(self):
+        tipo_de_poliza = self.env['ir.config_parameter'].sudo().get_param('nomina_cfdi_conta_apl.tipo_de_poliza')
+        for batch in self:
+            if tipo_de_poliza != 'Por nómina':
+                batch.is_all_payslip_done = False
+            else:    
+                statuses = batch.slip_ids.mapped('state')
+                if len(set(statuses))==1 and statuses[0]=='done':
+                    batch.is_all_payslip_done = True
+                else: 
+                    batch.is_all_payslip_done = False
+    
+    is_all_payslip_done = fields.Boolean("Is all Payslip Done?", compute='_compute_is_all_payslip_done')
+    move_id = fields.Many2one('account.move', 'Accounting Entry', readonly=True, copy=False)
+    
+#     @api.multi
+    def action_crear_poliza(self):
+        precision = self.env['decimal.precision'].precision_get('Payroll')
+        payslip_obj = self.env['hr.payslip']
+        for slip_batch in self:
+            slips_confirm = slip_batch.slip_ids.filtered(lambda x:x.state in ['draft', 'waiting'])
+            if slips_confirm:
+                slips_confirm.action_payslip_done()
+            line_ids = []
+            debit_sum = 0.0
+            credit_sum = 0.0
+            date = slip_batch.date_end
+            currency = slip_batch.journal_id.company_id.currency_id
+
+            slip_batch_journal_id = slip_batch.journal_id.id
+            name = _('Payslip batch of %s') % (slip_batch.name)
+            move_dict = {
+                'narration': name,
+                'ref': slip_batch.name,
+                'journal_id': slip_batch_journal_id,
+                'date': date,
+            }
+            payslips = payslip_obj.browse()
+            for slip in slip_batch.slip_ids:
+                if slip.move_id:
+                    continue
+                for line in slip.details_by_salary_rule_category:
+                    amount = currency.round(slip.credit_note and -line.total or line.total)
+                    if currency.is_zero(amount): #float_is_zero(amount, precision_digits=precision):
+                        continue
+
+                    department_id = slip.contract_id and slip.contract_id.department_id or False
+                    #obtener la cuenta de debito
+                    debit_analytic_account_id = slip.contract_id.analytic_account_id.id
+                    debit_account_id = False
+                    if department_id.name[0] == 'P':
+                        debit_account_id = line.salary_rule_id.cta_deudora_ids.id
+                    else:
+                        debit_account_id = line.salary_rule_id.account_debit.id
+                    if not debit_analytic_account_id:
+                        debit_analytic_account_id = line.salary_rule_id.analytic_account_id.id
+
+                    #obtener la cuenta de crédito
+                    credit_analytic_account_id = slip.contract_id.analytic_account_id.id
+                    credit_account_id = False
+                    if department_id.name[0] == 'P':
+                        credit_account_id = line.salary_rule_id.cta_acreedora_ids.id
+                    else:
+                        credit_account_id = line.salary_rule_id.account_credit.id
+                    if not credit_analytic_account_id:
+                        credit_analytic_account_id = line.salary_rule_id.analytic_account_id.id
+
+                    if debit_account_id:
+                        debit_line = (0, 0, {
+                            'name': line.name,
+                            'partner_id': line._get_partner_id(credit_account=False),
+                            'account_id': debit_account_id,
+                            'journal_id': slip_batch_journal_id, #slip.journal_id.id,
+                            'date': date,
+                            'debit': amount > 0.0 and amount or 0.0,
+                            'credit': amount < 0.0 and -amount or 0.0,
+                            'analytic_account_id': debit_analytic_account_id,
+                            'tax_line_id': line.salary_rule_id.account_tax_id.id,
+                        })
+                        line_ids.append(debit_line)
+                        debit_sum += debit_line[2]['debit'] - debit_line[2]['credit']
+    
+                    if credit_account_id:
+                        credit_line = (0, 0, {
+                            'name': line.name,
+                            'partner_id': line._get_partner_id(credit_account=True),
+                            'account_id': credit_account_id,
+                            'journal_id': slip_batch_journal_id, #slip.journal_id.id,
+                            'date': date,
+                            'debit': amount < 0.0 and -amount or 0.0,
+                            'credit': amount > 0.0 and amount or 0.0,
+                            'analytic_account_id': credit_analytic_account_id,
+                            'tax_line_id': line.salary_rule_id.account_tax_id.id,
+                        })
+                        line_ids.append(credit_line)
+                        credit_sum += credit_line[2]['credit'] - credit_line[2]['debit']
+    
+                if currency.compare_amounts(credit_sum, debit_sum) == -1: #float_compare(credit_sum, debit_sum, precision_digits=precision) == -1:
+                    acc_id = slip_batch.journal_id.default_credit_account_id.id
+                    if not acc_id:
+                        raise UserError(_('The Expense Journal "%s" has not properly configured the Credit Account!') % (slip_batch.journal_id.name))
+                    adjust_credit = (0, 0, {
+                        'name': _('Adjustment Entry'),
+                        'partner_id': False,
+                        'account_id': acc_id,
+                        'journal_id': slip_batch.journal_id.id,
+                        'date': date,
+                        'debit': 0.0,
+                        'credit': currency.round(debit_sum - credit_sum),
+                    })
+                    line_ids.append(adjust_credit)
+    
+                elif currency.compare_amounts(debit_sum, credit_sum) == -1: #float_compare(debit_sum, credit_sum, precision_digits=precision) == -1:
+                    acc_id = slip_batch.journal_id.default_debit_account_id.id
+                    if not acc_id:
+                        raise UserError(_('The Expense Journal "%s" has not properly configured the Debit Account!') % (slip_batch.journal_id.name))
+                    adjust_debit = (0, 0, {
+                        'name': _('Adjustment Entry'),
+                        'partner_id': False,
+                        'account_id': acc_id,
+                        'journal_id': slip_batch.journal_id.id,
+                        'date': date,
+                        'debit': currency.round(credit_sum - debit_sum),
+                        'credit': 0.0,
+                    })
+                    line_ids.append(adjust_debit)
+                payslips += slip
+            if line_ids:
+                move_dict['line_ids'] = line_ids
+                move = self.env['account.move'].create(move_dict)
+                slip_batch.write({'move_id': move.id})
+                payslips.write({'move_id': move.id, 'date': date})
+                move.post()
+        return True
+
+class HrSalaryRule(models.Model):
+    _inherit = 'hr.salary.rule'
+
+    cta_deudora_ids = fields.Many2one('account.account', 'Cuenta deudora PAG')
+    cta_acreedora_ids = fields.Many2one('account.account', 'Cuenta deudora PAG')
+
