@@ -74,7 +74,7 @@ class HrPayslipRun(models.Model):
                     continue
                 for line in slip.details_by_salary_rule_category:
                     amount = currency.round(slip.credit_note and -line.total or line.total)
-                    if currency.is_zero(amount): #float_is_zero(amount, precision_digits=precision):
+                    if currency.is_zero(amount):
                         continue
 
                     department_id = slip.contract_id and slip.contract_id.department_id or False
@@ -127,13 +127,14 @@ class HrPayslipRun(models.Model):
                         })
                         line_ids.append(credit_line)
                         credit_sum += credit_line[2]['credit'] - credit_line[2]['debit']
-    
-                if currency.compare_amounts(credit_sum, debit_sum) == -1: #float_compare(credit_sum, debit_sum, precision_digits=precision) == -1:
+                payslips += slip
+
+            if currency.compare_amounts(credit_sum, debit_sum) == -1:
                     acc_id = slip_batch.journal_id.default_credit_account_id.id
                     if not acc_id:
-                        raise UserError(_('The Expense Journal "%s" has not properly configured the Credit Account!') % (slip_batch.journal_id.name))
+                        raise UserError(_('El diario de gasto "%s" no tiene configurado la cuenta de crédito') % (slip_batch.journal_id.name))
                     adjust_credit = (0, 0, {
-                        'name': _('Adjustment Entry'),
+                        'name': _('Entrada de ajuste'),
                         'partner_id': False,
                         'account_id': acc_id,
                         'journal_id': slip_batch.journal_id.id,
@@ -142,13 +143,12 @@ class HrPayslipRun(models.Model):
                         'credit': currency.round(debit_sum - credit_sum),
                     })
                     line_ids.append(adjust_credit)
-    
-                elif currency.compare_amounts(debit_sum, credit_sum) == -1: #float_compare(debit_sum, credit_sum, precision_digits=precision) == -1:
+            elif currency.compare_amounts(debit_sum, credit_sum) == -1:
                     acc_id = slip_batch.journal_id.default_debit_account_id.id
                     if not acc_id:
-                        raise UserError(_('The Expense Journal "%s" has not properly configured the Debit Account!') % (slip_batch.journal_id.name))
+                        raise UserError(_('El diario de gasto "%s" no tiene configurado la cuenta de débito') % (slip_batch.journal_id.name))
                     adjust_debit = (0, 0, {
-                        'name': _('Adjustment Entry'),
+                        'name': _('Entrada de ajuste'),
                         'partner_id': False,
                         'account_id': acc_id,
                         'journal_id': slip_batch.journal_id.id,
@@ -157,7 +157,7 @@ class HrPayslipRun(models.Model):
                         'credit': 0.0,
                     })
                     line_ids.append(adjust_debit)
-                payslips += slip
+
             if line_ids:
                 move_dict['line_ids'] = line_ids
                 move = self.env['account.move'].create(move_dict)
@@ -170,5 +170,5 @@ class HrSalaryRule(models.Model):
     _inherit = 'hr.salary.rule'
 
     cta_deudora_ids = fields.Many2one('account.account', 'Cuenta deudora PAG')
-    cta_acreedora_ids = fields.Many2one('account.account', 'Cuenta deudora PAG')
+    cta_acreedora_ids = fields.Many2one('account.account', 'Cuenta acreedora PAG')
 
