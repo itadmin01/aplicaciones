@@ -720,14 +720,14 @@ class HrPayslip(models.Model):
          self.acum_subsidio_aplicado = self.acumulado_mes('SUB')
          self.acum_isr_antes_subem = self.acumulado_mes('ISR')
          self.acum_per_grav = self.acumulado_mes('TPERG')
-         self.acum_isr = self.acumulado_mes('ISR2')
+         self.acum_isr = self.acumulado_mes('D001')
 
     @api.onchange('isr_anual')
     def _get_acumulados_anual(self):
          self.acum_subsidio_aplicado_anual = self.acumulado_anual('SUB')
          self.acum_isr_antes_subem_anual = self.acumulado_anual('ISR')
          self.acum_per_grav_anual = self.acumulado_anual('TPERG')
-         self.acum_isr_anual = self.acumulado_anual('ISR2')
+         self.acum_isr_anual = self.acumulado_anual('D001')
          self.acum_dev_isr = self.acumulado_anual('O007')
          self.acum_dev_subem = self.acumulado_anual('D061')
          self.acum_dev_subem_entregado = self.acumulado_anual('D062')
