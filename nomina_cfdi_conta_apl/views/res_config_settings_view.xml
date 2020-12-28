@@ -13,7 +13,11 @@
                         <div class="o_setting_right_pane">
                             <label for="tipo_de_poliza" />
                             <field name="tipo_de_poliza" class="o_light_label mt16" />
-                            
+                            <field name="department_ids">
+	                        	<tree>
+	                        		<field name="name" string="Departmento"/>
+	                        	</tree>
+	                        </field>
                         </div>
                     </div>
                 </div>
