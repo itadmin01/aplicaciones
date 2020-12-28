@@ -95,7 +95,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                 #Added
                 'tipo_nomina' : payslip_batch.tipo_nomina,
                 'fecha_pago' : payslip_batch.fecha_pago,
-                'journal_id': payslip_batch.journal_id.id
+                'journal_id': payslip_batch.journal_id.id,
                 'proyeccion':payslip_batch.proyeccion,
                 'periodo_anterior':payslip_batch.periodo_anterior.id,
             }
