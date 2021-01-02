@@ -27,15 +27,11 @@ class HrPayslipRun(models.Model):
             for contract in contracts:
                 if contract.employee_id:
                    slip_data = self.env['hr.payslip'].onchange_employee_id(self.date_start, self.date_end, contract.employee_id.id, contract_id=False)
-                   slip_data2 = self.env['hr.payslip'].onchange_employee_id(batch_last_id.date_start, batch_last_id.date_end, contract.employee_id.id, contract_id=False)
                    new_worked_days = []
                    new_days = 0
                    work_days_now = slip_data['value'].get('worked_days_line_ids')
-                   work_days_previous = slip_data2['value'].get('worked_days_line_ids')
                    for days_now in work_days_now:
-                      _logger.info('entra01')
                       if days_now['code'] == 'INC_EG' or days_now['code'] == 'INC_RT' or days_now['code'] == 'INC_MAT':
-                          _logger.info('entra02')
                           new_worked_days.append({
                               'name': days_now['name'],
                               'sequence': days_now['sequence'],
@@ -45,29 +41,29 @@ class HrPayslipRun(models.Model):
                               'contract_id': days_now['contract_id'],
                           })
                           new_days += days_now['number_of_days']
-                      _logger.info('entra03')
-                   for days_now2 in work_days_previous:
-                      _logger.info('entra04')
-                      if days_now2['code'] != 'INC_EG' and days_now2['code'] != 'INC_RT' and days_now2['code'] != 'INC_MAT' and days_now2['code'] != 'WORK100':
-                          _logger.info('entra05')
-                          new_worked_days.append({
-                              'name': days_now2['name'],
-                              'sequence': days_now2['sequence'],
-                              'code': days_now2['code'],
-                              'number_of_days': days_now2['number_of_days'],
-                              'number_of_hours': days_now2['number_of_hours'],
-                              'contract_id': days_now2['contract_id'],
-                          })
-                          new_days += days_now2['number_of_days']
-                   new_worked_days.append({
-                           'name': "Días de trabajo",
-                           'sequence': 1,
-                           'code': 'WORK100',
-                           'number_of_days': self.dias_pagar - new_days,
-                           'number_of_hours': (self.dias_pagar - new_days) * 8,
-                           'contract_id': slip_data['value'].get('contract_id'),
-                          })
-                   _logger.info("new_worked_days %s, ", new_worked_days)
+                   if batch_last_id:
+                      slip_data2 = self.env['hr.payslip'].onchange_employee_id(batch_last_id.date_start, batch_last_id.date_end, contract.employee_id.id, contract_id=False)
+                      work_days_previous = slip_data2['value'].get('worked_days_line_ids')
+                      for days_now2 in work_days_previous:
+                         if days_now2['code'] != 'INC_EG' and days_now2['code'] != 'INC_RT' and days_now2['code'] != 'INC_MAT' and days_now2['code'] != 'WORK100':
+                             new_worked_days.append({
+                                 'name': days_now2['name'],
+                                 'sequence': days_now2['sequence'],
+                                 'code': days_now2['code'],
+                                 'number_of_days': days_now2['number_of_days'],
+                                 'number_of_hours': days_now2['number_of_hours'],
+                                 'contract_id': days_now2['contract_id'],
+                             })
+                             new_days += days_now2['number_of_days']
+                      new_worked_days.append({
+                              'name': "Días de trabajo",
+                              'sequence': 1,
+                              'code': 'WORK100',
+                              'number_of_days': self.dias_pagar - new_days,
+                              'number_of_hours': (self.dias_pagar - new_days) * 8,
+                              'contract_id': slip_data['value'].get('contract_id'),
+                             })
+                      _logger.info("new_worked_days %s, ", new_worked_days)
 
                  #  work_days_ids = self.env['hr.payslip.work_days'].search([('id', '=', work_days)])
                  #  for work in work_days_ids:
@@ -87,7 +83,7 @@ class HrPayslipRun(models.Model):
                        #Added
                        'tipo_nomina' : self.tipo_nomina,
                        'fecha_pago' : self.fecha_pago,
-                       #'journal_id': self.journal_id.id
+                       'journal_id': self.journal_id.id
                        'proyeccion':self.proyeccion,
                        'periodo_anterior':self.periodo_anterior.id,
                    }
@@ -101,7 +97,7 @@ class HrPayslipRun(models.Model):
                    res.update({'dias_pagar': self.dias_pagar,
                                    'imss_mes': self.imss_mes,
                                    'mes': '{:02d}'.format(self.date_end.month),
-                                   #'no_nomina': self.no_nomina,
+                                   'no_nomina': self.no_nomina,
                                    'isr_devolver': self.isr_devolver,
                                    'isr_ajustar': self.isr_ajustar,
                                    'isr_anual': self.isr_anual,
