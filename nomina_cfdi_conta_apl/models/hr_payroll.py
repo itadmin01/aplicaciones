@@ -83,7 +83,6 @@ class HrPayslipRun(models.Model):
                     debit_account_id = False
                     res_config = self.env['res.config.settings'].sudo().search([], order="id desc", limit=1)
                     departments = res_config.department_ids
-#                     if department_id.name[0] == 'P':
                     if department_id in departments:          
                         debit_account_id = line.salary_rule_id.cta_deudora_ids.id
                     else:
@@ -94,7 +93,6 @@ class HrPayslipRun(models.Model):
                     #obtener la cuenta de crédito
                     credit_analytic_account_id = slip.contract_id.analytic_account_id.id
                     credit_account_id = False
-#                     if department_id.name[0] == 'P':
                     if department_id in departments:
                         credit_account_id = line.salary_rule_id.cta_acreedora_ids.id
                     else:
