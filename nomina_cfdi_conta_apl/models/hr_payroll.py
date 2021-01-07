@@ -136,7 +136,7 @@ class HrPayslipRun(models.Model):
                     if not acc_id:
                         raise UserError(_('El diario de gasto "%s" no tiene configurado la cuenta de crédito') % (slip_batch.journal_id.name))
                     adjust_credit = (0, 0, {
-                        'name': _('Entrada de ajuste'),
+                        'name': _('Provisión De Sueldos Y Salarios Por Pagar'),
                         'partner_id': False,
                         'account_id': acc_id,
                         'journal_id': slip_batch.journal_id.id,
@@ -150,7 +150,7 @@ class HrPayslipRun(models.Model):
                     if not acc_id:
                         raise UserError(_('El diario de gasto "%s" no tiene configurado la cuenta de débito') % (slip_batch.journal_id.name))
                     adjust_debit = (0, 0, {
-                        'name': _('Entrada de ajuste'),
+                        'name': _('Provisión De Sueldos Y Salarios Por Pagar'),
                         'partner_id': False,
                         'account_id': acc_id,
                         'journal_id': slip_batch.journal_id.id,
