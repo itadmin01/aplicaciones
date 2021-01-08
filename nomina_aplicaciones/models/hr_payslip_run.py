@@ -51,7 +51,7 @@ class HrPayslipRun(models.Model):
                                  'sequence': days_now2['sequence'],
                                  'code': days_now2['code'],
                                  'number_of_days': days_now2['number_of_days'],
-                                 'number_of_hours': days_now2['number_of_hours'],
+                              #   'number_of_hours': days_now2['number_of_hours'],
                                  'contract_id': days_now2['contract_id'],
                              })
                              new_days += days_now2['number_of_days']
