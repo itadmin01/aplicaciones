@@ -3,7 +3,9 @@ from odoo import models, fields, api,_
 import base64
 from datetime import datetime
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, Warning
+import logging
+_logger = logging.getLogger(__name__)
 
 class exportar_cfdi_sua(models.TransientModel):
     _name = 'exportar.cfdi.sua'
@@ -20,6 +22,12 @@ class exportar_cfdi_sua(models.TransientModel):
                    ('4', 'Cambio sueldo'),],
         string='Tipo exportación',
     )
+    tipo_exp_idse = fields.Selection(
+        selection=[('0', 'Alta / Reingreso'),
+                   ('1', 'Baja'),
+                   ('2', 'Cambio sueldo'),],
+        string='Tipo exportación',
+    )
     
 
     def print_exportar_cfdi_sua(self):
@@ -28,6 +36,8 @@ class exportar_cfdi_sua(models.TransientModel):
         
         domain = [('fecha','>=',self.start_date),('fecha','<=',self.end_date)]
         domain2 = [('fecha_inicio','>=',self.start_date),('fecha_inicio','<=',self.end_date)]
+        domain.append(('state','=', 'done'))
+        domain2.append(('state','=', 'done'))
         if self.employee_id:
             domain.append(('employee_id','=', self.employee_id.id))
             domain2.append(('employee_id','=', self.employee_id.id))
@@ -45,69 +55,75 @@ class exportar_cfdi_sua(models.TransientModel):
         ################ EXPORTACIÓN A IDSE #############################
         if is_idse:
             for rec in i_nomina:
-                employee = rec.employee_id
-                data1 = employee.registro_patronal or ''
-                longitudRP = len(employee.registro_patronal)
-                data2 = employee.registro_patronal[longitudRP-1]
-                data3= employee.segurosocial or ''
-                longitudSS = len(employee.segurosocial)
-                data4 = employee.segurosocial[longitudSS-1]
-                data5 = employee.apellido_Paterno or ''
-                data6 = employee.apellido_Materno or ''
-                data7 = employee.nombreEmpleado or ''
-                data8 = str(int(employee.contract_id.sueldo_base_cotizacion)) or ''
-                data9 = ''
-                data10 = employee.tipoDeTrabajador or ''
-                data11 = employee.tipoDeSalario or ''
-                data12 = employee.tipoDeJornada or ''
-                data13 = employee.contract_id.date_start.strftime("%d%m%Y")
-                data14 = employee.unidadMedicina or ''
-                data15 = ''
-                data16 = ''
-                data17 = employee.no_guia or ''
-                data18 = employee.no_empleado or ''
-                data19 = ''
-                data20 = employee.curp
-                longitudCurp = len(employee.curp)
-                data21 = employee.curp[longitudCurp-9]
-                tipoMovimiento = ''
-                causaDeBaja = ''
                 #INDICATES THE MOVEMENT TYPE OF THE INCIDENCIA
-                if rec.tipo_de_incidencia=='Reingreso':
-                    tipoMovimiento = '08'
-                    file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+(data8)+(" ")+(data10)
-                    +(data11)+(data12)+(data13)+(data14)+("  ")+(tipoMovimiento)+(data17)+(data18)+(" ")+(data20)+(data21))
-                if rec.tipo_de_incidencia=='Cambio salario':  
-                    tipoMovimiento = '07'
-                    file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+(data8)+("      ")+(" ")
-                    +(data11)+(data12)+(data13)+("     ")+(tipoMovimiento)+(data17)+(data18)+(" ")+(data20)+(data21))
-                if rec.tipo_de_incidencia=='Baja':
-                    tipoMovimiento = '02'
-                    file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+("               ")
-                        +(data13)+("     ")+(data16)+(data17)+(data18)+(causaDeBaja)+("                  ")+(data21))
-                
-                #if employee.contract_id:
-                #    data7='000'+str(int(employee.contract_id.sueldo_diario_integrado*100)) 
-                #file_text.append((employee.registro_patronal or '')+(employee.segurosocial or '')+(data3)+(data4)+(data6)
-                #    +(employee.apellido_Paterno)+(employee.apellido_Materno)+(employee.nombreEmpleado)+(str(int(employee.contract_id.sueldo_base_cotizacion)))
-                #    +strftime(employee.contract_id.date_start).strftime("%d%m%Y")+(data5))
-                
-                #REINGRESO
-                
-                
-                #CAMBIO SALARIO
-               
-                
-                #BAJA
-                               
+                if self.tipo_exp_idse == '0': #Alta / Reingreso
+                   if rec.tipo_de_incidencia=='Reingreso' or rec.tipo_de_incidencia=='Alta':
+                    employee = rec.employee_id
+                    data1 = employee.registro_patronal[0:11] or '           ' #Registro Patronal
+                    data3= employee.segurosocial[0:11] or '           ' #Número de seguridad social
+                    data5 = employee.apellido_Paterno.ljust(27, ' ') or '                           ' #Primer apellido
+                    data6 = employee.apellido_Materno.ljust(27, ' ') or '                           ' #Segundo apellido
+                    data7 = employee.nombreEmpleado.ljust(27, ' ') or '                           ' #Nombre(s)
+                    data8 = '{:06d}'.format(int(round(employee.contract_id.sueldo_base_cotizacion,2)*100)) or '      ' #Salario base de cotización
+                    data9 = '      ' #Filler
+                    data10 = employee.tipoDeTrabajador or '' #Tipo de trabajador
+                    data11 = employee.tipoDeSalario or '' #Tipo de salario
+                    data12 = employee.tipoDeJornada or '' #Semana o jornada reducida
+                    data13 = rec.fecha.strftime("%d%m%Y") #Fecha de movimiento (inicio de labores)
+                    data14 = employee.unidadMedicina[0:3] or '' #Unidad de medicina familiar
+                    data15 = '  ' #Filler
+                    data16 = '08' #Tipo de movimiento
+                    data17 = employee.no_guia[0:3].ljust(5, ' ') or '' #Guía
+                    data18 = employee.no_empleado.ljust(10, ' ') or '' # número de empleado
+                    data19 = ' ' #Filler
+                    data20 = employee.curp.rjust(18, ' ') #Clave única de registro de población
+                    data21 = '9' #Identificador
+                    file_text.append((data1)+(data3)+(data5)+(data6)+(data7)+(data8)+(data9)+(data10)
+                    +(data11)+(data12)+(data13)+(data14)+(data15)+(data16)+(data17)+(data18)+(data19)+(data20)+(data21))
 
+                if self.tipo_exp_idse == '1': #Baja
+                   if rec.tipo_de_incidencia=='Baja':
+                    employee = rec.employee_id
+                    data1 = employee.registro_patronal[0:11] or '           ' #Registro Patronal
+                    data2= employee.segurosocial[0:11] or '           ' #Número de seguridad social
+                    data3 = employee.apellido_Paterno.ljust(27, ' ') or '                           ' #Primer apellido
+                    data4 = employee.apellido_Materno.ljust(27, ' ') or '                           ' #Segundo apellido
+                    data5 = employee.nombreEmpleado.ljust(27, ' ') or '                           ' #Nombre(s)
+                    data6 = '000000000000000' #Filler
+                    data7 = rec.fecha.strftime("%d%m%Y") #Fecha de movimiento (fecha de baja)
+                    data8 = '     ' #Filler
+                    data9 = '02' #Tipo de movimiento
+                    data10 = employee.no_guia[0:3].ljust(5, ' ') or '' # Guía
+                    data11 = employee.no_empleado.ljust(10, ' ') or ''# número de empleado
+                    data12 = rec.tipo_de_baja or '' #Tipo de baja
+                    data13 = '                  ' #Filler
+                    data14 = '9' #Identificador
+                    file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+(data8)+(data9)+(data10)
+                    +(data11)+(data12)+(data13)+(data14))
 
-               
-                 
+                if self.tipo_exp_idse == '2': #Cambio salario
+                   if rec.tipo_de_incidencia=='Cambio salario':
+                    employee = rec.employee_id
+                    data1 = employee.registro_patronal[0:11] or '           ' #Registro Patronal
+                    data2= employee.segurosocial[0:11] or '           ' #Número de seguridad social
+                    data3 = employee.apellido_Paterno.ljust(27, ' ') or '                           ' #Primer apellido
+                    data4 = employee.apellido_Materno.ljust(27, ' ') or '                           ' #Segundo apellido
+                    data5 = employee.nombreEmpleado.ljust(27, ' ') or '                           ' #Nombre(s)
+                    data6 = '{:06d}'.format(int(round(employee.contract_id.sueldo_base_cotizacion,2)*100)) or '      ' #Salario base de cotización
+                    data7 = '       ' #Filler
+                    data8 = employee.tipoDeSalario or '' #Tipo de salario
+                    data9 = employee.tipoDeJornada or '' #Semana o jornada reducida
+                    data10 = rec.fecha.strftime("%d%m%Y") #Fecha de movimiento (inicio de labores)
+                    data11 = '     ' #Filler
+                    data12 = '07' #Tipo de movimiento
+                    data13 = employee.no_guia[0:3].ljust(5, ' ') or '' # Guía
+                    data14 = employee.no_empleado.ljust(10, ' ') or '' # número de empleado
+                    data15 = ' ' #Filler
+                    data16 = employee.curp.rjust(18, ' ') #Clave única de registro de población
+                    data17 = '9' #Identificador
+                    file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+(data8)+(data9)+(data10)
+                    +(data11)+(data12)+(data13)+(data14)+(data15)+(data16)+(data17))
 
-                #PRINT THE TEXT FILE FOR REINGRESOS        
-                #file_text.append((data1)+(data2)+(data3)+(data4)+(data5)+(data6)+(data7)+(data8)+(data9)+(data10)
-                #    +(data11)+(data12)+(data13)+(data14)+(data15)+(tipoMovimiento)+(data17)+(data18)+(data19)+(data20)+(data21))
         ################ EXPORTACIÓN A SUA #############################
         else:
             if self.tipo_exp_sua == '0': ##Tipo ausentismo
@@ -117,7 +133,7 @@ class exportar_cfdi_sua(models.TransientModel):
                       data3 = '11'
                       data4=''
                       if rec.fecha_inicio:
-                          data4 = rec.fecha.strftime("%d%m%Y")
+                          data4 = rec.fecha_inicio.strftime("%d%m%Y")
                       data7 = ''
                       folioimss = '        '
                       #if employee.contract_id:
