@@ -83,7 +83,7 @@ class HrPayslipRun(models.Model):
                        #Added
                        'tipo_nomina' : self.tipo_nomina,
                        'fecha_pago' : self.fecha_pago,
-                       'journal_id': self.journal_id.id
+                       'journal_id': self.journal_id.id,
                        'proyeccion':self.proyeccion,
                        'periodo_anterior':self.periodo_anterior.id,
                    }
