@@ -41,6 +41,31 @@ class HrPayslipRun(models.Model):
                               'contract_id': days_now['contract_id'],
                           })
                           new_days += days_now['number_of_days']
+                      if self.reporte_asistencia:
+                          asistencia_lines = self.reporte_asistencia.mapped('asistencia_line_ids')
+                          employee_id = contract.employee_id.id
+                          emp_line_exist = asistencia_lines.filtered(lambda x: x.employee_id.id==employee_id)
+                          dias_lab = 0
+                          if emp_line_exist:
+                              emp_line_exist = emp_line_exist[0]
+                              dias_lab =  emp_line_exist.dias_lab
+                          new_worked_days.append({
+                                'name': "Días de trabajo",
+                                'sequence': 1,
+                                'code': 'WORK100',
+                                'number_of_days': dias_lab,
+                                'number_of_hours': dias_lab * 8,
+                                'contract_id': slip_data['value'].get('contract_id'),
+                          })
+                      else:
+                          new_worked_days.append({
+                                'name': "Días de trabajo",
+                                'sequence': 1,
+                                'code': 'WORK100',
+                                'number_of_days': self.dias_pagar - new_days,
+                                'number_of_hours': (self.dias_pagar - new_days) * 8,
+                                'contract_id': slip_data['value'].get('contract_id'),
+                          })
                    if batch_last_id:
                       slip_data2 = self.env['hr.payslip'].onchange_employee_id(batch_last_id.date_start, batch_last_id.date_end, contract.employee_id.id, contract_id=False)
                       work_days_previous = slip_data2['value'].get('worked_days_line_ids')
@@ -51,23 +76,18 @@ class HrPayslipRun(models.Model):
                                  'sequence': days_now2['sequence'],
                                  'code': days_now2['code'],
                                  'number_of_days': days_now2['number_of_days'],
-                              #   'number_of_hours': days_now2['number_of_hours'],
+                                 'number_of_hours': days_now2['number_of_hours'],
                                  'contract_id': days_now2['contract_id'],
                              })
                              new_days += days_now2['number_of_days']
-                      new_worked_days.append({
-                              'name': "Días de trabajo",
-                              'sequence': 1,
-                              'code': 'WORK100',
-                              'number_of_days': self.dias_pagar - new_days,
-                              'number_of_hours': (self.dias_pagar - new_days) * 8,
-                              'contract_id': slip_data['value'].get('contract_id'),
-                             })
+                      if not self.reporte_asistencia:
+                          for work_day_line in new_worked_days:
+                               if work_day_line['code'] == 'WORK100':
+                                    work_day_line.update({'number_of_days': self.dias_pagar - new_days,
+                                                   'number_of_hours': (self.dias_pagar - new_days) * 8,
+                                    })
                       _logger.info("new_worked_days %s, ", new_worked_days)
 
-                 #  work_days_ids = self.env['hr.payslip.work_days'].search([('id', '=', work_days)])
-                 #  for work in work_days_ids:
-                 #       _logger.info("codigo %s, dias %s", work.name, work.code)
                    res = {
                        'employee_id': contract.employee_id.id,
                        'name': _('Nómina salarial de  %s para %s') % (contract.employee_id.name, tools.ustr(babel.dates.format_date(date=ttyme, format='MMMM-y', locale=locale))),
