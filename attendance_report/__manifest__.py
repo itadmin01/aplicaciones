@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 {
     'name': "Reporte de asistencia",
-    'version': "13.0.3",
+    'version': "13.0.4",
     'author': "IT Admin",
     'category': "",
-    'depends': ['hr_attendance','om_hr_payroll', 'nomina_cfdi_ee', 'web_tree_dynamic_colored_field'],
+    'depends': ['hr_attendance','om_hr_payroll', 'nomina_cfdi_ee', 
+                'web_tree_dynamic_colored_field'
+                ]
+    ,
     'data': [
             'security/ir.model.access.csv',
            # 'templates/assets.xml',

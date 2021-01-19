@@ -102,6 +102,7 @@ class ReporteAsistencia(models.Model):
        # if self.periodo == 'quincenal' and self.tipo_pago == '01':
        #    num_dias = 15
         _logger.info('numdias %s', num_dias)
+        #self.env['hr.contract'].search([]).write({'state':'open'})
         employee_ids = self.env['hr.employee'].search([('contract_ids.state','=','open')])
         employees_id=[];
         emp_added_ids = []
@@ -123,34 +124,83 @@ class ReporteAsistencia(models.Model):
         if employees_ids:
             employees_ids = str(employees_ids)
             employees_ids = employees_ids[1:len(employees_ids)-1] 
-            cr.execute("""select employee_id, sum(worked_hours), check_in::date from hr_attendance 
-                        where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s)
-                        group by employee_id, check_in::date order by check_in::date 
-                        """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT), check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
-            employee_data = cr.fetchall()
-            employee_data_dict = {}
-            for data in employee_data:
-                employee_id = data[0]
-                worked_hours = data[1]
-                att_date = data[2]
-                if employee_id not in employee_data_dict:
-                    employee_data_dict.update({employee_id:{}})
+            registros_de_asistencia=self.env['ir.config_parameter'].sudo().get_param('attendance_report.registros_de_asistencia'),
+            #registros_de_asistencia='completo'
+            if 'completo' in registros_de_asistencia:
+                cr.execute("""select employee_id, sum(worked_hours), check_in::date from hr_attendance 
+                            where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s)
+                            group by employee_id, check_in::date order by check_in::date 
+                            """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT), check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
+                employee_data = cr.fetchall()
+                employee_data_dict = {}
+                for data in employee_data:
+                    employee_id = data[0]
+                    worked_hours = data[1]
+                    att_date = data[2]
+                    if employee_id not in employee_data_dict:
+                        employee_data_dict.update({employee_id:{}})
+                    
+                    employee_data_dict[employee_id][att_date] = worked_hours
+                days_dict = {'day_1':0, 'day_2':1, 'day_3':2, 'day_4':3, 'day_5': 4, 'day_6': 5, 'day_7': 6, 'day_8': 7, 'day_9': 8, 'day_10': 9, 'day_11': 10, 'day_12': 11, 'day_13': 12,
+                             'day_14': 13, 'day_15': 14, 'day_16': 15}
+                for line in self.asistencia_line_ids:
+                    employee_id = line.employee_id.id
+                    emp_data = employee_data_dict.get(employee_id)
+                    if emp_data:
+                        vals = {}
+                        for day_field, day in  days_dict.items():
+                            day_date = fecha_inicial + relativedelta(days=day)
+                            #day_date = day_date.strftime(DEFAULT_SERVER_DATE_FORMAT)
+                            if day_date in emp_data:
+                                vals.update({day_field: emp_data[day_date]})
+                        if vals:
+                            line.write(vals)
+            #registros_de_asistencia='parcial'                
+            if 'parcial' in registros_de_asistencia:
+                cr.execute("""select employee_id, check_in::date, array_agg(id) from hr_attendance
+                            where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s) and check_out is NULL 
+                            group by employee_id, check_in::date order by check_in::date
+                            """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT),check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
+#                 cr.execute("""select employee_id, check_in::date,array_agg(id) from hr_attendance
+#                             where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s)  
+#                             group by employee_id, check_in::date order by check_in::date
+#                             """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT),check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
+                employee_data = cr.fetchall()
+                employee_data_dict = {}
+                for data in employee_data:
+                    employee_id = data[0]
+                    #worked_hours = data[1]
+                    att_date = data[1]
+                    attendance_ids = data[2]
+                    attendances = self.env['hr.attendance'].browse(attendance_ids)
+                    attendances.sorted(lambda x: x.check_in)
+                    attendance_fist = attendances[0]
+                    attendance_last = attendances[-1]
+                    start_time = attendance_fist.check_in
+                    start_end = attendance_last.check_in
+                    time = start_end - start_time
+                    time  = round(time.seconds/60/60)
+                    if employee_id  in employee_data_dict.keys():
+                        employee_data_dict[employee_id].update({att_date:time})
+                    if employee_id not in employee_data_dict:
+                        employee_data_dict.update({employee_id:{}})
+                        employee_data_dict[employee_id][att_date] = time
                 
-                employee_data_dict[employee_id][att_date] = worked_hours
-            days_dict = {'day_1':0, 'day_2':1, 'day_3':2, 'day_4':3, 'day_5': 4, 'day_6': 5, 'day_7': 6, 'day_8': 7, 'day_9': 8, 'day_10': 9, 'day_11': 10, 'day_12': 11, 'day_13': 12,
-                         'day_14': 13, 'day_15': 14, 'day_16': 15}
-            for line in self.asistencia_line_ids:
-                employee_id = line.employee_id.id
-                emp_data = employee_data_dict.get(employee_id)
-                if emp_data:
-                    vals = {}
-                    for day_field, day in  days_dict.items():
-                        day_date = fecha_inicial + relativedelta(days=day)
-                        day_date = day_date.strftime(DEFAULT_SERVER_DATE_FORMAT)
-                        if day_date in emp_data:
-                            vals.update({day_field: emp_data[day_date]})
-                    if vals:
-                        line.write(vals)
+                days_dict = {'day_1':0, 'day_2':1, 'day_3':2, 'day_4':3, 'day_5': 4, 'day_6': 5, 'day_7': 6, 'day_8': 7, 'day_9': 8, 'day_10': 9, 'day_11': 10, 'day_12': 11, 'day_13': 12,
+                            'day_14': 13, 'day_15': 14, 'day_16': 15}
+                for line in self.asistencia_line_ids:
+                    employee_id = line.employee_id.id
+                    emp_data = employee_data_dict.get(employee_id)
+                    if emp_data:
+                        vals = {}
+                        for day_field, day in  days_dict.items():
+                            day_date = fecha_inicial + relativedelta(days=day)
+                            #day_date = day_date.strftime(DEFAULT_SERVER_DATE_FORMAT)
+                            if day_date in emp_data:
+                                vals.update({day_field: emp_data[day_date]})
+                        if vals:
+                            line.write(vals)     
+                               
         return True
 
 class ReporteAsistenciaLine(models.Model):
@@ -209,81 +259,82 @@ class ReporteAsistenciaLine(models.Model):
     @api.depends('day_1', 'day_2', 'day_3', 'day_4', 'day_5', 'day_6', 'day_7','day_8', 'day_9', 'day_10', 'day_11', 'day_12', 'day_13', 'day_14', 'day_15', 'day_16')
     def _compute_dias_lab(self):
         falta = 0
-        if self.day_1 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab +=float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_2 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_3 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_4 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_5 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_6 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_7 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_8 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_9 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_10 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_11 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_12 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_13 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            falta += 1
-        if self.day_14 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            if self.num_dias > 14:
+        for line in self:
+            if line.day_1 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab +=float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
                 falta += 1
-        if self.day_15 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            if self.num_dias > 14:
+            if line.day_2 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
                 falta += 1
-        if self.day_16 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
-            self.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-        else:
-            if self.num_dias > 14:
+            if line.day_3 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
                 falta += 1
-        _logger.info('periodo %s --- tipo_pago %s', self.periodo, self.report_asistencia_id.tipo_pago)
-        if self.report_asistencia_id.periodo == 'quincenal':
-           if self.report_asistencia_id.tipo_pago == '01': # peridodo
-              _logger.info('numdias2 %s --- dias lab --- falta', self.num_dias, self.dias_lab, falta)
-              if self.num_dias == falta:
-                  self.dias_lab = 0
-              else:
-                  self.dias_lab = 15 - falta
+            if line.day_4 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_5 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_6 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_7 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_8 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_9 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_10 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_11 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_12 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_13 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_14 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                if line.num_dias > 14:
+                    falta += 1
+            if line.day_15 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                if line.num_dias > 14:
+                    falta += 1
+            if line.day_16 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                if line.num_dias > 14:
+                    falta += 1
+                _logger.info('periodo %s --- tipo_pago %s', line.periodo, line.report_asistencia_id.tipo_pago)
+            if line.report_asistencia_id.periodo == 'quincenal':
+               if line.report_asistencia_id.tipo_pago == '01': # peridodo
+                  _logger.info('numdias2 %s --- dias lab --- falta', line.num_dias, line.dias_lab, falta)
+                  if line.num_dias == falta:
+                      line.dias_lab = 0
+                  else:
+                      line.dias_lab = 15 - falta
            #   if self.dias_lab > 15:
            #       self.dias_lab = 15
            #   if self.num_dias < 15 and self.dias_lab >= 13:
