@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_reporte_asistencia,access.reporte.asistencia,attendance_report.model_reporte_asistencia,,1,1,1,1
 access_reporte_asistencia_line,access.reporte.asistencia.line,attendance_report.model_reporte_asistencia_line,,1,1,1,1
+access_reporte_asistencia_semanal,access.reporte.asistencia.semanal,attendance_report.model_reporte_asistencia_line_semanal,,1,1,1,1
+

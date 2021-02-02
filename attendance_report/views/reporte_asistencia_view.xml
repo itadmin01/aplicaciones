@@ -17,16 +17,16 @@
                 <group>
                     <field name="periodo" />
                     <field name="tipo_pago" />
+                    <field name="septimo_dia" />
                     <field name="fecha_inicial" required='1' attrs="{'readonly': [('state','!=','draft')]}" />
                     <field name="fecha_final" force_save='1'/>
                 </group>
                 <notebook>
-                    <page string="Asistencia" >
+                    <page string="Asistencia quincenal" attrs="{'invisible':[('periodo','=','semanal')]}">
                         <field name="asistencia_line_ids" attrs="{'readonly' : [('state', '!=','draft')]}" >
                             <tree editable='1' options='{"bg_color": "red"}'>
-                                <field name="employee_id" required='1'/>
                                 <field name="hr_dia" invisible='1'/>
-                                <field name="periodo" invisible='1'/>
+                                <field name="employee_id" required='1'/>
                                 <field name="num_dias" invisible='1'/>
                                 <field name="day_1" options='{"fg_color": "red: day_1 &lt; hr_dia;"}'/>
                                 <field name="day_2" options='{"fg_color": "red: day_2 &lt; hr_dia;"}'/>
@@ -35,15 +35,32 @@
                                 <field name="day_5" options='{"fg_color": "red: day_5 &lt; hr_dia;"}'/>
                                 <field name="day_6" options='{"fg_color": "red: day_6 &lt; hr_dia;"}'/>
                                 <field name="day_7" options='{"fg_color": "red: day_7 &lt; hr_dia;"}'/>
-                                <field name="day_8" options='{"fg_color": "red: day_8 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
-                                <field name="day_9" options='{"fg_color": "red: day_9 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
-                                <field name="day_10" options='{"fg_color": "red: day_10 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
-                                <field name="day_11" options='{"fg_color": "red: day_11 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
-                                <field name="day_12" options='{"fg_color": "red: day_12 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
-                                <field name="day_13" options='{"fg_color": "red: day_13 &lt; hr_dia;"}' attrs="{'invisible':[('periodo','!=','quincenal')]}"/>
+                                <field name="day_8" options='{"fg_color": "red: day_8 &lt; hr_dia;"}'/>
+                                <field name="day_9" options='{"fg_color": "red: day_9 &lt; hr_dia;"}'/>
+                                <field name="day_10" options='{"fg_color": "red: day_10 &lt; hr_dia;"}'/>
+                                <field name="day_11" options='{"fg_color": "red: day_11 &lt; hr_dia;"}'/>
+                                <field name="day_12" options='{"fg_color": "red: day_12 &lt; hr_dia;"}'/>
+                                <field name="day_13" options='{"fg_color": "red: day_13 &lt; hr_dia;"}'/>
                                 <field name="day_14" options='{"fg_color": "red: day_14 &lt; hr_dia;"}' attrs="{'invisible':[('num_dias','&lt;',14)]}"/>
                                 <field name="day_15" options='{"fg_color": "red: day_15 &lt; hr_dia;"}' attrs="{'invisible':[('num_dias','&lt;',15)]}"/>
                                 <field name="day_16" options='{"fg_color": "red: day_16 &lt; hr_dia;"}' attrs="{'invisible':[('num_dias','&lt;',16)]}"/>
+                                <field name="dias_lab"/>
+                            </tree>
+                        </field>
+                    </page>
+                    <page string="Asistencia Semanal" attrs="{'invisible':[('periodo','=','quincenal')]}">
+                        <field name="asistencia_semanal_ids" attrs="{'readonly' : [('state', '!=','draft')]}" >
+                            <tree editable='1' options='{"bg_color": "red"}'>
+                                <field name="employee_id" required='1'/>
+                                <field name="hr_dia" invisible='1'/>
+                                <field name="num_dias" invisible='1'/>
+                                <field name="day_1" options='{"fg_color": "red: day_1 &lt; hr_dia;"}'/>
+                                <field name="day_2" options='{"fg_color": "red: day_2 &lt; hr_dia;"}'/>
+                                <field name="day_3" options='{"fg_color": "red: day_3 &lt; hr_dia;"}'/>
+                                <field name="day_4" options='{"fg_color": "red: day_4 &lt; hr_dia;"}'/>
+                                <field name="day_5" options='{"fg_color": "red: day_5 &lt; hr_dia;"}'/>
+                                <field name="day_6" options='{"fg_color": "red: day_6 &lt; hr_dia;"}'/>
+                                <field name="day_7" options='{"fg_color": "red: day_7 &lt; hr_dia;"}'/>
                                 <field name="dias_lab"/>
                             </tree>
                         </field>

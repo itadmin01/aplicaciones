@@ -10,10 +10,12 @@ _logger = logging.getLogger(__name__)
 
 class ReporteAsistencia(models.Model):
     _name = 'reporte.asistencia'
+    _description = 'Asistencia'
 
     fecha_inicial = fields.Date('Fecha inicial')
     fecha_final = fields.Date('Fecha final', store=True)
     asistencia_line_ids = fields.One2many('reporte.asistencia.line','report_asistencia_id',string="Reporte Asistencia lines")
+    asistencia_semanal_ids = fields.One2many('reporte.asistencia.line.semanal','report_asistencia_id',string="Reporte Asistencia Semanal")
     name = fields.Char("Name", required=True, copy=False, readonly=True, states={'draft': [('readonly', False)]}, index=True, default=lambda self: _('New'))
     state = fields.Selection([('draft', 'Borrador'), ('done', 'Hecho'), ('cancel', 'Cancelado')], string='Estado', default='draft')
     periodo = fields.Selection(
@@ -27,6 +29,12 @@ class ReporteAsistencia(models.Model):
         selection=[('01', 'Por periodo'), 
                    ('02', 'Por día'),],
         string=_('Conteo de días'),
+    )
+    septimo_dia = fields.Selection(
+        selection=[('01', 'Completo'), 
+                   ('02', 'Proporcional'),],
+        default = '01',
+        string=_('Septimo dia'),
     )
     #hr_dia= fields.Float(string='Horas Minimo Por Dia')
     #dia_laborado = fields.Float(string='Dia Laborado')
@@ -101,7 +109,7 @@ class ReporteAsistencia(models.Model):
         num_dias = int((check_out - fecha_inicial + timedelta(days=1)).days)
        # if self.periodo == 'quincenal' and self.tipo_pago == '01':
        #    num_dias = 15
-        _logger.info('numdias %s', num_dias)
+        _logger.info('numero de dias %s', num_dias)
         #self.env['hr.contract'].search([]).write({'state':'open'})
         employee_ids = self.env['hr.employee'].search([('contract_ids.state','=','open')])
         employees_id=[];
@@ -109,7 +117,7 @@ class ReporteAsistencia(models.Model):
         for employee in employee_ids:
             if employee.id in emp_added_ids:
                 continue
-            employees_id.append((0,0,{'employee_id':employee.id,'periodo':self.periodo,'tipo_pago':self.tipo_pago,'num_dias':num_dias}))
+            employees_id.append((0,0,{'employee_id':employee.id,'num_dias':num_dias, 'septimo_dia': self.septimo_dia}))
             #self.asistencia_line_ids.employee_id += employee
             emp_added_ids.append(employee.id)
         self.asistencia_line_ids = employees_id
@@ -199,39 +207,23 @@ class ReporteAsistencia(models.Model):
                             if day_date in emp_data:
                                 vals.update({day_field: emp_data[day_date]})
                         if vals:
-                            line.write(vals)     
-                               
+                            line.write(vals)
         return True
 
 class ReporteAsistenciaLine(models.Model):
     _name = 'reporte.asistencia.line'
-    
+    _description = 'Linea asistencia'
+
     @api.model
     def _default_hr_dia(self):
         return float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia'))
-        
-#    @api.model
-#    def _default_dia_laborado(self):
-#        return float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
-    
-#    @api.model
-#    def _default_periodo(self):
-#        return self.env['ir.config_parameter'].sudo().get_param('attendance_report.periodo','semanal')
-    
+
     hr_dia= fields.Float(string='Horas Minimo Por Dia', default=_default_hr_dia)
     num_dias = fields.Float(string='Numero de dias')
-
-   # dia_laborado = fields.Float(string='Dia Laborado')
-    
-    periodo = fields.Selection(
-        selection=[('semanal', 'Semanal'), 
-                   ('quincenal', 'Quincenal'),
-                   ('catorcenal', 'Catorcenal'),],
-        string=_('Periodo'),
-    )
-    tipo_pago = fields.Selection(
-        selection=[('01', 'Por periodo'), 
-                   ('02', 'Por día'),],
+    septimo_dia = fields.Selection(
+        selection=[('01', 'Completo'), 
+                   ('02', 'Proporcional'),],
+        default = '01',
         string=_('Conteo de días'),
     )
 
@@ -260,6 +252,7 @@ class ReporteAsistenciaLine(models.Model):
     def _compute_dias_lab(self):
         falta = 0
         for line in self:
+            line.dias_lab = 0
             if line.day_1 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
                 line.dias_lab +=float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
             else:
@@ -327,7 +320,77 @@ class ReporteAsistenciaLine(models.Model):
             else:
                 if line.num_dias > 14:
                     falta += 1
-                _logger.info('periodo %s --- tipo_pago %s', line.periodo, line.report_asistencia_id.tipo_pago)
+            if line.report_asistencia_id.septimo_dia == '01':
+                  if line.dias_lab >= 6 and line.dias_lab < 12:
+                       line.dias_lab += 1
+                  if line.dias_lab > 12:
+                       line.dias_lab += 2
+            else:
+                 sept = line.dias_lab / 6.0
+                 if sept > 2:
+                    sept = 2
+                 line.dias_lab += sept
+            _logger.info('tipo_pago %s', line.report_asistencia_id.tipo_pago)
+            _logger.info('numdias2 %s --- dias lab --- falta', line.num_dias, line.dias_lab, falta)
+
+class ReporteAsistenciaLine(models.Model):
+    _name = 'reporte.asistencia.line.semanal'
+    _description = 'Linea asistencia semanal'
+    
+    @api.model
+    def _default_hr_dia(self):
+        return float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia'))
+
+    
+    hr_dia= fields.Float(string='Horas Minimo Por Dia', default=_default_hr_dia)
+    num_dias = fields.Float(string='Numero de dias')
+
+    report_asistencia_id = fields.Many2one('reporte.asistencia','Report Asistencia')
+    employee_id = fields.Many2one('hr.employee','Empleado')
+    day_1=fields.Float('D1')
+    day_2=fields.Float('D2')
+    day_3=fields.Float('D3')
+    day_4=fields.Float('D4')
+    day_5=fields.Float('D5')
+    day_6=fields.Float('D6')
+    day_7=fields.Float('D7')
+    dias_lab=fields.Float('Días', compute='_compute_dias_lab', store=True, readonly=True)
+
+#    @api.one
+    @api.depends('day_1', 'day_2', 'day_3', 'day_4', 'day_5', 'day_6', 'day_7')
+    def _compute_dias_lab(self):
+        falta = 0
+        for line in self:
+            if line.day_1 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab +=float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_2 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_3 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_4 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_5 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_6 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+            if line.day_7 >= float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia')):
+                line.dias_lab += float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.dia_laborado'))
+            else:
+                falta += 1
+
+            _logger.info('tipo_pago %s', line.report_asistencia_id.tipo_pago)
             if line.report_asistencia_id.periodo == 'quincenal':
                if line.report_asistencia_id.tipo_pago == '01': # peridodo
                   _logger.info('numdias2 %s --- dias lab --- falta', line.num_dias, line.dias_lab, falta)
@@ -339,3 +402,5 @@ class ReporteAsistenciaLine(models.Model):
            #       self.dias_lab = 15
            #   if self.num_dias < 15 and self.dias_lab >= 13:
            #       self.dias_lab = 15
+
+
