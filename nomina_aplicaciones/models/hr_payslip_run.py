@@ -130,7 +130,7 @@ class HrPayslipRun(models.Model):
                    d_to_1 = fields.Date.from_string(self.date_end)
                    if date_start_1:
                      if date_start_1 > d_from_1:
-                        imss_dias =  (to_date - date_start_1).days + 1
+                        imss_dias =  (self.date_end - date_start_1).days + 1
                         res.update({'imss_dias': imss_dias,
                                   'dias_infonavit': imss_dias,})
                      else:
