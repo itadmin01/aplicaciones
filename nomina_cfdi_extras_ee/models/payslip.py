@@ -204,13 +204,19 @@ class PayslipBatches(models.Model):
                 for code in all_col_list:
                     amt = 0
                     if code in total.keys():
-                        amt = slip.get_amount_from_rule_code(code)
-                        if amt:
-                            grand_total[code] = grand_total.get(code) + amt
-                            total[code] = total.get(code) + amt
+                        for line in slip.details_by_salary_rule_category:
+                           if line.code == code:
+                               amt = line.total
+#                        amt = slip.get_amount_from_rule_code(code)
+#                        if amt:
+                               grand_total[code] = grand_total.get(code) + amt
+                               total[code] = total.get(code) + amt
                     else:
-                        amt = slip.get_amount_from_rule_code(code)
-                        total[code] = amt or 0
+                        #amt = slip.get_amount_from_rule_code(code)
+                        for line in slip.details_by_salary_rule_category:
+                           if line.code == code:
+                               amt = line.total
+                               total[code] = amt or 0
                         if code in grand_total.keys():
                             grand_total[code] = amt + grand_total.get(code) or 0.0
                         else:
