@@ -99,6 +99,7 @@ class employee_loan(models.Model):
     notes = fields.Text('Razón', required="1")
     is_close = fields.Boolean('Esta cerrado',compute='is_ready_to_close')
     move_id = fields.Many2one('account.move',string='Diario')
+    company_id = fields.Many2one('res.company', 'Company', required=True, index=True, default=lambda self: self.env.company)
 
     @api.depends('remaing_amount')
     def is_ready_to_close(self):
@@ -381,12 +382,30 @@ class employee_loan(models.Model):
     
     def action_done_loan(self):
         self.state = 'done'
+        
+    @api.model
+    def init(self):
+        company_id = self.env['res.company'].search([])
+        for company in company_id:
+            employee_loan_sequence = self.env['ir.sequence'].search([('code', '=', 'employee.loan'), ('company_id', '=', company.id)])
+            if not employee_loan_sequence:
+                employee_loan_sequence.create({
+                        'name': 'Secuencia de prestamo',
+                        'code': 'employee.loan',
+                        'prefix': 'PRES/',
+                        'padding': 4,
+                        'company_id': company.id,
+                    })
 
     @api.model
     def create(self, vals):
         if vals.get('name', '/') == '/':
-            vals['name'] = self.env['ir.sequence'].next_by_code(
-                'employee.loan') or '/'
+            if 'company_id' in vals:
+                vals['name'] = self.env['ir.sequence'].with_context(force_company=vals['company_id']).next_by_code(
+                    'employee.loan') or '/'
+            else:
+                vals['name'] = self.env['ir.sequence'].next_by_code(
+                    'employee.loan') or '/'
         return super(employee_loan, self).create(vals)
 
     

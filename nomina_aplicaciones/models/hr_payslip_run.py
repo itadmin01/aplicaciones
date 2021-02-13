@@ -117,7 +117,7 @@ class HrPayslipRun(models.Model):
                    res.update({'dias_pagar': self.dias_pagar,
                                    'imss_mes': self.imss_mes,
                                    'mes': '{:02d}'.format(self.date_end.month),
-                                   'no_nomina': self.no_nomina,
+                                   'ultima_nomina': self.ultima_nomina,
                                    'isr_devolver': self.isr_devolver,
                                    'isr_ajustar': self.isr_ajustar,
                                    'isr_anual': self.isr_anual,

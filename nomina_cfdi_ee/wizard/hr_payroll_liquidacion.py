@@ -15,7 +15,7 @@ class GeneraLiquidaciones(models.TransientModel):
 
     fecha_inicio = fields.Date(string='Fecha inicio último periodo')
     fecha_liquidacion = fields.Date(string='Fecha liquidacion')
-    employee_id =fields.Many2one("hr.employee",'Employee')
+    employee_id = fields.Many2one("hr.employee",'Employee')
     dias_base = fields.Float('Días base', default='90')
     dias_x_ano = fields.Float('Días por cada año trabajado', default='20')
     dias_totales = fields.Float('Total de días', store=True)
@@ -42,23 +42,28 @@ class GeneraLiquidaciones(models.TransientModel):
     tope_prima_monto  = fields.Float('Tope prima monto')
     estructura  = fields.Many2one('hr.payroll.structure', string='Estructura ordinaria')
     prima_vac = fields.Float('Días aguinaldo prima vacacional')
+    journal_id = fields.Many2one("account.journal",'Diario')
 
     def calculo_create(self):
         employee = self.employee_id
+        module = self.env['ir.module.module'].sudo().search([('name','=','om_hr_payroll_account')])
         if not employee:
             raise Warning("Seleccione primero al empleado.")
         payslip_batch_nm = 'Liquidacion ' +employee.name
         date_from = self.fecha_inicio
         date_to = self.fecha_liquidacion
+
         batch = self.env['hr.payslip.run'].create({
             'name' : payslip_batch_nm,
             'date_start': date_from,
             'date_end': date_to,
             'periodicidad_pago': self.contract_id.periodicidad_pago,
-            'no_nomina': '1',
             'tipo_nomina': 'E',
             'fecha_pago' : date_to,
             })
+        if module and module.state == 'installed':
+            batch.update({'journal_id': self.journal_id.id})
+
         # batch
         payslip_obj = self.env['hr.payslip']
         payslip_onchange_vals = payslip_obj.onchange_employee_id(date_from, date_to, employee_id=employee.id)
@@ -100,14 +105,15 @@ class GeneraLiquidaciones(models.TransientModel):
             'date_from': date_from,
             'date_to': date_to,
             'contract_id' : contract_id,
-            'no_nomina': '1',
             'fecha_pago' : date_to,
             'mes': str(date_to.month).zfill(2),
             'dias_pagar': dias_pagar,
             'imss_dias': self.dias_pendientes_pagar,
-            'nom_liquidacion': True
+            'nom_liquidacion': True,
              #'input_line_ids': [(0, 0, x) for x in payslip_vals.get('input_line_ids',[])],
             })
+        if module and module.state == 'installed':
+            payslip_vals.update({'journal_id': self.journal_id.id})
         payslip_obj.create(payslip_vals)
         
         #Creación de nomina extraordinaria
@@ -135,12 +141,14 @@ class GeneraLiquidaciones(models.TransientModel):
                'fecha_pago' : date_to,
                'worked_days_line_ids': worked_days2, #[(0, 0, x) for x in payslip_vals2.get('worked_days_line_ids',[])],
             })
+            if module and module.state == 'installed':
+                payslip_vals2.update({'journal_id': self.journal_id.id})
             payslip_obj.create(payslip_vals2)
             
         return True
     
     def calculo_liquidacion(self):
-        if self.employee_id and self.contract_id:
+        if self.employee_id and self.contract_id and self.contract_id.tablas_cfdi_id:
             #cálculo de conceptos de nómina extraordinaria
             date_start = self.contract_id.date_start
             last_day = self.fecha_liquidacion

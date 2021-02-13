@@ -24,8 +24,8 @@
                     <field name="tipo_pago" attrs="{'invisible':[('periodicidad_pago','not in',['04', '05'])]}" />
                     <field name="tipo_prima_vacacional" />
                     <field name="sept_dia" attrs="{'invisible' : [('periodicidad_pago','!=','02')]}"/>
-                    <field name="septimo_dia" />
-                    <field name="incapa_sept_dia" />
+                    <field name="septimo_dia" attrs="{'invisible' : [('sept_dia','=',False)]}"/>
+                    <field name="incapa_sept_dia" attrs="{'invisible' : [('sept_dia','=',False)]}"/>
                     <field name="semana_inglesa" attrs="{'invisible':[('periodicidad_pago','!=','02')]}"/>
                     <field name="prima_dominical" />
                     <field name="calc_isr_extra" />

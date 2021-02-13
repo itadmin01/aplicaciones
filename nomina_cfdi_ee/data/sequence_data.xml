@@ -14,7 +14,7 @@
             <field name="name">Horas Extras nomina</field>
             <field name="code">horas.nomina</field>
             <field name="padding">4</field>
-            <field name="company_id" eval="False"/>
+            <field name="company_id" eval="True"/>
         </record>
 
         <!-- Sequences for incapacidades.nomina -->

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import api, models
+from odoo import api, models, fields
 from odoo.exceptions import UserError
 #from odoo.addons.hr_payroll.wizard.hr_payroll_payslips_by_employees import HrPayslipEmployees
 from datetime import datetime
@@ -52,17 +52,32 @@ class HrPayslipEmployeesExt(models.TransientModel):
                 #input_lines = map(lambda x: x[2].update({'contract_id':contract_id}),input_lines)
                 res.update({'input_line_ids': input_lines,})
             res.update({'dias_pagar': payslip_batch.dias_pagar,
-                            'imss_dias': payslip_batch.imss_dias,
+                            #'imss_dias': payslip_batch.imss_dias,
                             'imss_mes': payslip_batch.imss_mes,
-                            'no_nomina': payslip_batch.no_nomina,
+                            'ultima_nomina': payslip_batch.ultima_nomina,
                             'mes': '{:02d}'.format(to_date.month),
                             'isr_devolver': payslip_batch.isr_devolver,
                             'isr_ajustar': payslip_batch.isr_ajustar,
                             'isr_anual': payslip_batch.isr_anual,
-                            'concepto_periodico': payslip_batch.concepto_periodico})
+                            'periodicidad_pago': payslip_batch.periodicidad_pago,
+                            'no_periodo': payslip_batch.no_periodo,
+                            'concepto_periodico': payslip_batch.concepto_periodico,})
+            employ_contract_id = self.env['hr.contract'].search([('id', '=', slip_data['value'].get('contract_id'))])
+            date_start_1 = employ_contract_id.date_start
+            d_from_1 = fields.Date.from_string(from_date)
+            d_to_1 = fields.Date.from_string(to_date)
+            if date_start_1:
+               if date_start_1> d_from_1:
+                  imss_dias =  (to_date - date_start_1).days + 1
+                  res.update({'imss_dias': imss_dias,
+                           'dias_infonavit': imss_dias,})
+               else:
+                  res.update({'imss_dias': payslip_batch.imss_dias,})
+            else:
+               res.update({'imss_dias': payslip_batch.imss_dias,})
 
             payslips += self.env['hr.payslip'].create(res)
-            
+
         payslips.compute_sheet()
         
         return {'type': 'ir.actions.act_window_close'}

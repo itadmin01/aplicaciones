@@ -7,13 +7,13 @@
     Nomina CFDI Module
     ''',
     'author': 'IT Admin',
-    'version': '13.0.2',
+    'version': '13.07',
     'category': 'Employees',
     'depends': [
         'om_hr_payroll',
     ],
     'data': [
-#        'data/hr_payroll_data.xml',
+        'security/security.xml',
         'data/sequence_data.xml',
         'data/cron.xml',
         'data/nomina.otropago.csv',
@@ -34,6 +34,8 @@
         'views/horas_extras_view.xml',
         'wizard/wizard_liquidacion_view.xml',
         'wizard/import_nomina_xml.xml',
+        'wizard/listado_de_nomina_wizard_view.xml',
+        'wizard/generar_recibo_nomina.xml',
     ],
     'installable': True,
     'application': False,

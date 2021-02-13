@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
-    rfc = fields.Char(string=_('RFC'))
     curp = fields.Char(string=_('CURP'))
     proveedor_timbrado= fields.Selection(
         selection=[('multifactura', _('Servidor 1')),
@@ -19,8 +18,6 @@ class ResCompany(models.Model):
         string=_('Proveedor de timbrado'), 
     )
     api_key = fields.Char(string=_('API Key'))
-    http_factura = fields.Char(string=_('HTTP Factura'))
-    factura_dir = fields.Char(string=_('Directorio XML'))
     modo_prueba = fields.Boolean(string=_('Modo prueba'))
     regimen_fiscal = fields.Selection(
         selection=[('601', _('General de Ley Personas Morales')),
@@ -53,7 +50,6 @@ class ResCompany(models.Model):
     saldo_timbres =  fields.Float(string=_('Saldo de timbres'), readonly=True)
     saldo_alarma =  fields.Float(string=_('Alarma timbres'), default=0)
     correo_alarma =  fields.Char(string=_('Correo de alarma'))
-    telefono_sms = fields.Char(string=_('Teléfono celular'))  
 
     rfc_patron = fields.Char(string=_('RFC Patrón'))
     serie_nomina = fields.Char(string=_('Serie nomina'))
@@ -160,7 +156,7 @@ class ResCompany(models.Model):
     
     def get_saldo(self):
         values = {
-                 'rfc': self.rfc,
+                 'rfc': self.vat,
                  'api_key': self.proveedor_timbrado,
                  'modo_prueba': self.modo_prueba,
                  }

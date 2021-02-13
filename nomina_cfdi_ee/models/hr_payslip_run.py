@@ -20,8 +20,9 @@ class HrPayslipRun(models.Model):
     dias_pagar = fields.Float(string='Dias a pagar', store=True)
     imss_dias = fields.Float(string='Dias a cotizar en la nómina', store=True)
     imss_mes = fields.Float(string='Dias en el mes', store=True)
-    no_nomina = fields.Selection(
-        selection=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5'), ('6', '6')], string=_('No. de nómina en el mes / periodo'))
+    #no_nomina = fields.Selection(
+    #    selection=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5'), ('6', '6')], string=_('No. de nómina en el mes / periodo'))
+    ultima_nomina = fields.Boolean(string='Última nómina del mes')
     nominas_mes = fields.Integer('Nóminas a pagar en el mes')
     concepto_periodico = fields.Boolean('Desactivar conceptos periódicos')
     isr_ajustar = fields.Boolean(string='Ajustar ISR en nómina')
@@ -42,6 +43,21 @@ class HrPayslipRun(models.Model):
     )
     fecha_pago = fields.Date(string=_('Fecha de pago'), required=True)
     isr_anual = fields.Boolean(string='ISR anual')
+    no_periodo = fields.Selection(
+        selection=[('1', 'Periodo 1'), 
+                   ('2', 'Periodo 2'), 
+                   ('3', 'Periodo 3'),
+                   ('4', 'Periodo 4'), 
+                   ('5', 'Periodo 5'),
+                   ('6', 'Periodo 6'),
+                   ('7', 'Periodo 7'),
+                   ('8', 'Periodo 8'),
+                   ('9', 'Periodo 9'),
+                   ('10', 'Periodo 10'),
+                   ('11', 'Periodo 11'),
+                   ('12', 'Periodo 12'),
+                   ],
+        string=_('No. Periodo'),)
 
     @api.onchange('tipo_configuracion')
     def _set_periodicidad(self):
@@ -202,17 +218,82 @@ class HrPayslipRun(models.Model):
     
     def timbrar_nomina(self):
         self.ensure_one()
+        view = self.env.ref('nomina_cfdi_ee.timbrado_nomina_wizard')
+        ctx = self.env.context.copy()
+        ctx .update({'default_payslip_batch_id':self.id})
+        return {
+            'name': 'Timbrado De Nomina',
+            'type': 'ir.actions.act_window',
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_model': 'timbrado.de.nomina',
+            'views': [(view.id, 'form')],
+            'view_id': view.id,
+            'target': 'new',
+            'context': ctx,
+        }
+
+    def timbrar_nomina_wizard(self):
+        self.ensure_one()
         #cr = self._cr
         payslip_obj = self.env['hr.payslip']
+        start_range = self._context.get('start_range')
+        end_range = self._context.get('end_range')
         for payslip_id in self.slip_ids.ids:
             payslip = payslip_obj.browse(payslip_id)
-            if payslip.state in ['draft','verify']:
-               payslip.action_payslip_done()
-               try:
-                   if not payslip.nomina_cfdi:
-                      payslip.action_cfdi_nomina_generate()
-               except Exception as e:
-                   pass
+            if start_range and end_range:
+                emp_no = int(payslip.employee_id.no_empleado)
+                if emp_no >= start_range and emp_no <= end_range:
+                    if payslip.state in ['draft','verify']:
+                        payslip.action_payslip_done()
+                    try:
+                        if not payslip.nomina_cfdi:
+                           payslip.action_cfdi_nomina_generate()
+                    except Exception as e:
+                       pass
+            else:
+                if payslip.state in ['draft','verify']:
+                   payslip.action_payslip_done()
+                   try:
+                       if not payslip.nomina_cfdi:
+                          payslip.action_cfdi_nomina_generate()
+                   except Exception as e:
+                       pass
+        return
+
+    def confirmar_nomina(self):
+        self.ensure_one()
+        view = self.env.ref('nomina_cfdi_ee.confirmado_nomina_wizard')
+        ctx = self.env.context.copy()
+        ctx .update({'default_payslip_batch_id':self.id})
+        return {
+            'name': 'Confirmar Nomina',
+            'type': 'ir.actions.act_window',
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_model': 'confirmado.de.nomina',
+            'views': [(view.id, 'form')],
+            'view_id': view.id,
+            'target': 'new',
+            'context': ctx,
+        }
+
+    def confirmar_nomina_wizard(self):
+        self.ensure_one()
+        #cr = self._cr
+        payslip_obj = self.env['hr.payslip']
+        start_range = self._context.get('start_range')
+        end_range = self._context.get('end_range')
+        for payslip_id in self.slip_ids.ids:
+            payslip = payslip_obj.browse(payslip_id)
+            if start_range and end_range:
+                emp_no = int(payslip.employee_id.no_empleado)
+                if emp_no >= start_range and emp_no <= end_range:
+                    if payslip.state in ['draft','verify']:
+                        payslip.action_payslip_done()
+            else:
+                if payslip.state in ['draft','verify']:
+                   payslip.action_payslip_done()
         return
 
     @api.onchange('periodicidad_pago', 'date_start')

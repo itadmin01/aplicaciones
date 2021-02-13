@@ -109,7 +109,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
             res.update({'dias_pagar': payslip_batch.dias_pagar,
                             #'imss_dias': payslip_batch.imss_dias,
                             'imss_mes': payslip_batch.imss_mes,
-                            'no_nomina': payslip_batch.no_nomina,
+                            'ultima_nomina': payslip_batch.ultima_nomina,
                             'mes': '{:02d}'.format(to_date.month),
                             'isr_devolver': payslip_batch.isr_devolver,
                             'isr_ajustar': payslip_batch.isr_ajustar,

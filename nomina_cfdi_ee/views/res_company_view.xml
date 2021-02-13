@@ -11,16 +11,12 @@
                           <group cols="4"  string="Configuración">
                              <group>
                                 <field name="nombre_fiscal"/>
-                                <field name="rfc"/>
                                 <field name="curp"/>
                                 <field name="serie_nomina"/>
-                                <!--<field name="registro_patronal"/> -->
                                 <field name="regimen_fiscal"/>
                              </group>
                              <group>
                                 <field name="proveedor_timbrado"/>
-                                <!--   <field name="http_factura"/> -->
-                                <field name="factura_dir"/>
                                 <field name="modo_prueba"/>
                                 <field name="nomina_mail" /> <!-- domain="[('model','=','hr.contract')]" context="{'default_model': 'hr.contract'}" -->
                              </group>

@@ -98,7 +98,21 @@ class TablasPeriodoSemanalLine(models.Model):
     _description = 'TablasPeriodoSemanalLine'
 
     form_id = fields.Many2one('tablas.cfdi', string='Calendario semanal', required=True)
-    no_periodo = fields.Integer('No. periodo')
+    no_periodo = fields.Selection(
+        selection=[('1', 'Periodo 1'), 
+                   ('2', 'Periodo 2'), 
+                   ('3', 'Periodo 3'),
+                   ('4', 'Periodo 4'), 
+                   ('5', 'Periodo 5'),
+                   ('6', 'Periodo 6'),
+                   ('7', 'Periodo 7'),
+                   ('8', 'Periodo 8'),
+                   ('9', 'Periodo 9'),
+                   ('10', 'Periodo 10'),
+                   ('11', 'Periodo 11'),
+                   ('12', 'Periodo 12'),
+                   ],
+        string=_('No. Periodo'),)
     dia_inicio = fields.Date('Primer día del peridoo') 
     dia_fin = fields.Date('Ultímo día del peridoo') 
     no_dias = fields.Float('Dias en el periodo', store=True)
@@ -138,7 +152,7 @@ class TablasCFDI(models.Model):
     uma = fields.Float(string=_('UMA'), default='84.49')
     salario_minimo = fields.Float(string=_('Salario mínimo'))
     imss_mes = fields.Float('Periodo mensual nómina (dias)',default='30.4')
-	
+
     importe_utilidades = fields.Float(string=_('Importe a repartir a todos los empleados'), default=0)
     dias_min_trabajados = fields.Float(string=_('Dias mínimos trabajados en empleados eventuales'), default=60)
     funcion_ingresos = fields.Float(string=_('% a repartir en función de los ingresos'), default=50)
@@ -205,11 +219,15 @@ class TablasCFDI(models.Model):
     def _factor_dias(self):
         if self.total_dias_trabajados > 0:
             self.factor_dias = (self.importe_utilidades*(self.funcion_dias/100)) / self.total_dias_trabajados
+        else:
+            self.factor_dias = 0 
 
     @api.depends('total_dias_trabajados', 'total_sueldo_percibido')
     def _factor_sueldo(self):
         if self.total_sueldo_percibido > 0:
             self.factor_sueldo = (self.importe_utilidades*(self.funcion_ingresos/100)) / self.total_sueldo_percibido
+        else:
+            self.factor_sueldo = 0 
 
     def calcular_reparto_utilidades(self):
         payslips = self.env['hr.payslip'].search([('date_from', '>=', self.fecha_inicio), ('date_to', '<=', self.fecha_fin),('tipo_nomina','=', 'O')])

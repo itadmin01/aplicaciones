@@ -80,8 +80,8 @@ class Contract(models.Model):
         string=_('Prima vacacional'),
         default = '02'
     )
-    septimo_dia = fields.Boolean(string='Falta proporcional septimo día')
-    incapa_sept_dia = fields.Boolean(string='Incapacidad para cálculo 7mo día')
+    septimo_dia = fields.Boolean(string='Falta proporcional 7mo día')
+    incapa_sept_dia = fields.Boolean(string='Incluir incapacidad en 7mo día')
     sept_dia = fields.Boolean(string='Séptimo día separado')
     semana_inglesa = fields.Boolean(string='Semana inglesa')
     prima_dominical = fields.Boolean(string='Prima dominical')
