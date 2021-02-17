@@ -7,7 +7,7 @@ class HrHolidaysStatus(models.Model):
     
    
     def unlink(self):
-        for leave_type in self
+        for leave_type in self:
            auto_created_leaves = []
            if leave_type:
                auto_created_leaves.append(leave_type.id)
