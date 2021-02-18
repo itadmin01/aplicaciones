@@ -354,7 +354,7 @@ class hr_payslip(models.Model):
     def get_tablas_values(self):
         grabado_mensual = 0
         for payslip in self:
-            if payslip.no_nomina == '2':
+            if payslip.ultima_nomina:
                 grabado_mensual = payslip.rp_gravado + payslip.acum_per_grav
             else:
                 grabado_mensual = payslip.rp_gravado  / payslip.dias_pagar * payslip.contract_id.tablas_cfdi_id.imss_mes
