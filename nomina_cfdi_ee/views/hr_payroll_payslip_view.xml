@@ -54,7 +54,6 @@
                                 <field name="acum_isr" />
                                 <field name="acum_isr_antes_subem" />
                                 <field name="acum_subsidio_aplicado" />
-                                <field name="acum_fondo_ahorro" />
                             </group>
                             <group name="anual" string="Acumulados (anual)" attrs="{'invisible' : [('isr_anual','=',False)]}">
                                 <field name="acum_per_grav_anual" />
@@ -65,6 +64,10 @@
                                 <field name="acum_dev_subem" />
                                 <field name="acum_dev_subem_entregado" />
                                 <field name="acum_isr_ajuste" />
+                            </group>
+                            <group name="fondo_ahorro" string="Fondo de ahorro" >
+                                <field name="acum_fondo_ahorro" />
+                                <field name="acum_fondo_ahorro_anual" />
                             </group>
                         </group>
                 </page>
@@ -106,6 +109,16 @@
                 </button>
             </field>
         </record>
+
+        
+        <act_window 
+        name="Dar de baja"
+        res_model="wizard.dar.baja"
+        view_mode="form"
+        target="new"
+        id="wizard_dar_baja_view"
+        binding_model="hr.payslip.run"
+       />
 
        <record id="hr_payslip_run_form_nomina_cfdi" model="ir.ui.view">
             <field name="name">hr.payslip.run.form.nomina</field>
@@ -194,6 +207,7 @@
         <field name="inherit_id" ref="om_hr_payroll.view_hr_payslip_tree" />
         <field name="arch" type="xml">
             <field name="state" position="before">
+                <field name="total_nom"/>
                 <field name="estado_factura" string="Estado CFDI"/>
             </field>
         </field>

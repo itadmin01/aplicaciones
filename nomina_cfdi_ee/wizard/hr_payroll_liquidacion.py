@@ -43,6 +43,7 @@ class GeneraLiquidaciones(models.TransientModel):
     estructura  = fields.Many2one('hr.payroll.structure', string='Estructura ordinaria')
     prima_vac = fields.Float('Días aguinaldo prima vacacional')
     journal_id = fields.Many2one("account.journal",'Diario')
+    payslip_run_id = fields.Many2one("hr.payslip.run",'Procesamiento')
 
     def calculo_create(self):
         employee = self.employee_id
@@ -52,19 +53,20 @@ class GeneraLiquidaciones(models.TransientModel):
         payslip_batch_nm = 'Liquidacion ' +employee.name
         date_from = self.fecha_inicio
         date_to = self.fecha_liquidacion
-
-        batch = self.env['hr.payslip.run'].create({
-            'name' : payslip_batch_nm,
-            'date_start': date_from,
-            'date_end': date_to,
-            'periodicidad_pago': self.contract_id.periodicidad_pago,
-            'tipo_nomina': 'E',
-            'fecha_pago' : date_to,
-            })
-        if module and module.state == 'installed':
-            batch.update({'journal_id': self.journal_id.id})
-
         # batch
+        if self.payslip_run_id:
+           batch = self.payslip_run_id
+        else:
+           batch = self.env['hr.payslip.run'].create({
+               'name' : payslip_batch_nm,
+               'date_start': date_from,
+               'date_end': date_to,
+               'periodicidad_pago': self.contract_id.periodicidad_pago,
+               'tipo_nomina': 'E',
+               'fecha_pago' : date_to,
+               'journal_id': self.journal_id.id,
+           })
+        #nomina
         payslip_obj = self.env['hr.payslip']
         payslip_onchange_vals = payslip_obj.onchange_employee_id(date_from, date_to, employee_id=employee.id)
         #Creación de nomina ordinaria

@@ -161,7 +161,8 @@ class HrPayslip(models.Model):
     acum_isr  = fields.Float('ISR', compute='_get_acumulados_mensual')
     acum_isr_antes_subem  = fields.Float('ISR antes de SUBEM', compute='_get_acumulados_mensual')
     acum_subsidio_aplicado  = fields.Float('Subsidio aplicado', compute='_get_acumulados_mensual')
-    acum_fondo_ahorro = fields.Float('Fondo ahorro', compute='_get_fondo_ahorro')
+    acum_fondo_ahorro = fields.Float('Fondo ahorro mes', compute='_get_fondo_ahorro')
+    acum_fondo_ahorro_anual = fields.Float('Fondo ahorro anual', compute='_get_fondo_ahorro_anual')
     dias_periodo = fields.Float(string=_('Dias en el periodo'), compute='_get_dias_periodo')
     isr_devolver = fields.Boolean(string='Devolver ISR')
     isr_ajustar = fields.Boolean(string='Ajustar ISR en cada nómina')
@@ -226,6 +227,7 @@ class HrPayslip(models.Model):
         string=_('No. Periodo'),)
     dias_infonavit = fields.Float('Días INFONAVIT')
     cumpleanos = fields.Boolean(string=_('Cumpleaños'), compute='_get_cumpleanos', default = False)
+    total_nom = fields.Float('Total')
 
     @api.model
     def get_worked_day_lines(self, contracts, date_from, date_to):
@@ -540,7 +542,7 @@ class HrPayslip(models.Model):
                           'sequence': 3,
                           'code': "SEPT",
                           'number_of_days': aux, 
-                          'number_of_hours': 0.0,
+                          'number_of_hours': round(aux*8,2),
                           'contract_id': contract.id,
                       }
                       res.append(attendances)
@@ -567,7 +569,7 @@ class HrPayslip(models.Model):
                       else:
                          number_of_days = work_data['days'] * 30.42 / 30
                   else:
-                      dias_periodo = (date_to - date_start).days + 1
+                      dias_periodo = (date_to - contract.date_start).days + 1
                       total_days = work_data['days'] + leave_days
                       if total_days != dias_periodo:
                          if leave_days == 0  and not nvo_ingreso:
@@ -683,10 +685,10 @@ class HrPayslip(models.Model):
             default['nomina_cfdi'] = False
         return super(HrPayslip, self).copy(default=default)
 
-    @api.onchange('mes')
+    @api.onchange('periodicidad_pago', 'no_periodo')
     def _get_fondo_ahorro(self):
         total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
+        if self.employee_id and self.contract_id.tablas_cfdi_id:
             mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
             date_start = mes_actual.dia_inicio # self.date_from
             date_end = mes_actual.dia_fin #self.date_to
@@ -713,9 +715,39 @@ class HrPayslip(models.Model):
                         total += line.total
         self.acum_fondo_ahorro = total
 
+    def _get_fondo_ahorro_anual(self):
+        for payslip in self:
+            total = 0
+            if payslip.employee_id and payslip.contract_id.tablas_cfdi_id:
+                date_start = date(fields.Date.from_string(payslip.date_from).year, 1, 1)
+                date_end = date(fields.Date.from_string(payslip.date_from).year, 12, 31)
+                domain=[('state','=', 'done')]
+                if date_start:
+                    domain.append(('date_from','>=',date_start))
+                if date_end:
+                    domain.append(('date_to','<=',date_end))
+                domain.append(('employee_id','=',payslip.employee_id.id))
+                rules = payslip.env['hr.salary.rule'].search([('code', '=', 'D406'),('category_id.code','=','DED')])
+                payslips = payslip.env['hr.payslip'].search(domain)
+                payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
+                employees = {}
+                for line in payslip_lines:
+                    if line.slip_id.employee_id not in employees:
+                        employees[line.slip_id.employee_id] = {line.slip_id: []}
+                    if line.slip_id not in employees[line.slip_id.employee_id]:
+                        employees[line.slip_id.employee_id].update({line.slip_id: []})
+                    employees[line.slip_id.employee_id][line.slip_id].append(line)
+
+                for employee, payslips in employees.items():
+                    for payslip2,lines in payslips.items():
+                        for line in lines:
+                            total += line.total
+            payslip.acum_fondo_ahorro_anual = total
+            #return total
+
     def acumulado_mes(self, codigo):
         total = 0
-        if self.employee_id and self.mes and self.contract_id.tablas_cfdi_id:
+        if self.employee_id and self.contract_id.tablas_cfdi_id:
             if self.periodicidad_pago == '04':
                mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
             else:
@@ -1199,6 +1231,10 @@ class HrPayslip(models.Model):
                       'SalarioBaseCotApor': self.contract_id.sueldo_base_cotizacion,
                       'SalarioDiarioIntegrado': self.contract_id.sueldo_diario_integrado,
                 },
+                'adicional': {
+                      'tipo_relacion': self.tipo_relacion,
+                      'uuid_relacionado': self.uuid_relacionado,
+                },
                 'version': {
                       'cfdi': '3.3',
                       'sistema': 'odoo13',
@@ -1472,6 +1508,7 @@ class HrPayslip(models.Model):
         res = super(HrPayslip, self).compute_sheet()
         for rec in self:
             rec.calculo_imss()
+            rec.total_nom = rec.get_amount_from_rule_code('NET')
             #calculo de especie
             total = 0
             #_logger.info('monto especie')
@@ -1594,10 +1631,11 @@ class HrPayslip(models.Model):
             self.pat_infonavit = 0
             self.pat_total = 0
 
-    @api.onchange('date_to')
     def _get_cumpleanos(self):
         if self.employee_id.birthday:
           date_cumple = fields.Date.from_string(self.employee_id.birthday)
+          if str(date_cumple.day) == '29' and str(date_cumple.month) == '2':
+               date_cumple -=  datetime.timedelta(days=1)
           date_cumple = date_cumple.replace(self.date_to.year)
           d_from = fields.Date.from_string(self.date_from)
           #d_from = d_from.replace(date_cumple.year)

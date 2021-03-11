@@ -68,11 +68,11 @@ class HrPayslipEmployeesExt(models.TransientModel):
             d_to_1 = fields.Date.from_string(to_date)
             if date_start_1:
                if date_start_1> d_from_1:
-                  imss_dias =  (to_date - date_start_1).days + 1
-                  res.update({'imss_dias': imss_dias,
-                           'dias_infonavit': imss_dias,})
+                   imss_dias =  (to_date - date_start_1).days + 1
+                   res.update({'imss_dias': imss_dias,
+                            'dias_infonavit': imss_dias,})
                else:
-                  res.update({'imss_dias': payslip_batch.imss_dias,})
+                   res.update({'imss_dias': payslip_batch.imss_dias,})
             else:
                res.update({'imss_dias': payslip_batch.imss_dias,})
 

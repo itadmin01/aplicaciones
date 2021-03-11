@@ -106,6 +106,8 @@ class Contract(models.Model):
             diff_date = today - date_start 
             years = diff_date.days /365.0
             self.antiguedad_anos = int(years)
+        else:
+            self.antiguedad_anos = 0
 
     @api.model
     def calcular_liquidacion(self):
@@ -175,6 +177,19 @@ class Contract(models.Model):
         return sueldo_diario_integrado
 
 
+
+
+    #FUNCTION TO CREATE INCIDENTIA DAR ALTA
+    def action_dar_alta(self):
+        vals = {
+            'tipo_de_incidencia': 'Alta',
+            'employee_id': self.employee_id.id,
+            'fecha': self.date_start,
+            'state': 'done',
+        }
+        self.env['incidencias.nomina'].create(vals)
+
+
 class TablasVacacioneslLine(models.Model):
     _name = 'tablas.vacaciones.line'
     _description = 'tablas vacaciones'
@@ -188,3 +203,4 @@ class TablasVacacioneslLine(models.Model):
                    ('2021', '2021'),
                    ],
         string=_('Año'),)
+        

@@ -10,6 +10,18 @@ _logger = logging.getLogger(__name__)
 class HrPayslipRun(models.Model):
     _inherit = 'hr.payslip.run'
     
+    def action_confirmar_nomina(self):
+        for rec in self:
+            slip_ids = rec.slip_ids.filtered(lambda r: r.state == 'draft')
+            for slip_id in slip_ids:
+                slip_id.action_payslip_done()
+        
+    def action_cancelar_nomina(self):
+        for rec in self:
+            slip_ids = rec.slip_ids.filtered(lambda r: r.state == 'done')
+            for slip_id in slip_ids:
+                slip_id.write({'state': 'cancel'})
+    
     tipo_configuracion = fields.Many2one('configuracion.nomina', string='Configuración')
     all_payslip_generated = fields.Boolean("Payslip Generated",compute='_compute_payslip_cgdi_generated')
     all_payslip_generated_draft = fields.Boolean("Payslip Generated draft",compute='_compute_payslip_cgdi_generated_draft')
@@ -24,7 +36,7 @@ class HrPayslipRun(models.Model):
     #    selection=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5'), ('6', '6')], string=_('No. de nómina en el mes / periodo'))
     ultima_nomina = fields.Boolean(string='Última nómina del mes')
     nominas_mes = fields.Integer('Nóminas a pagar en el mes')
-    concepto_periodico = fields.Boolean('Desactivar conceptos periódicos')
+    concepto_periodico = fields.Boolean('Conceptos periódicos', default = True)
     isr_ajustar = fields.Boolean(string='Ajustar ISR en nómina')
     isr_devolver = fields.Boolean(string='Devolver ISR')
     periodicidad_pago = fields.Selection(
