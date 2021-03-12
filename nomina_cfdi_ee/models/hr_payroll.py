@@ -156,29 +156,29 @@ class HrPayslip(models.Model):
     #no_nomina = fields.Selection(
     #    selection=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5'), ('6', '6')], string=_('Nómina del mes'))
     ultima_nomina = fields.Boolean(string='Última nómina del mes')
-    acum_per_totales = fields.Float('Percepciones totales', compute='_get_acumulados_mensual')
-    acum_per_grav  = fields.Float('Percepciones gravadas', compute='_get_acumulados_mensual')
-    acum_isr  = fields.Float('ISR', compute='_get_acumulados_mensual')
-    acum_isr_antes_subem  = fields.Float('ISR antes de SUBEM', compute='_get_acumulados_mensual')
-    acum_subsidio_aplicado  = fields.Float('Subsidio aplicado', compute='_get_acumulados_mensual')
-    acum_fondo_ahorro = fields.Float('Fondo ahorro mes', compute='_get_fondo_ahorro')
-    acum_fondo_ahorro_anual = fields.Float('Fondo ahorro anual', compute='_get_fondo_ahorro_anual')
+    acum_per_totales = fields.Float('Percepciones totales', readonly=True) #, compute='_get_acumulados_mensual')
+    acum_per_grav  = fields.Float('Percepciones gravadas', readonly=True) #, compute='_get_acumulados_mensual')
+    acum_isr  = fields.Float('ISR', readonly=True) #, compute='_get_acumulados_mensual')
+    acum_isr_antes_subem  = fields.Float('ISR antes de SUBEM', readonly=True) #, compute='_get_acumulados_mensual')
+    acum_subsidio_aplicado  = fields.Float('Subsidio aplicado', readonly=True) #, compute='_get_acumulados_mensual')
+    acum_fondo_ahorro = fields.Float('Fondo ahorro mes', readonly=True) #, compute='_get_fondo_ahorro')
+    acum_fondo_ahorro_anual = fields.Float('Fondo ahorro anual', readonly=True) #, compute='_get_fondo_ahorro_anual')
     dias_periodo = fields.Float(string=_('Dias en el periodo'), compute='_get_dias_periodo')
     isr_devolver = fields.Boolean(string='Devolver ISR')
     isr_ajustar = fields.Boolean(string='Ajustar ISR en cada nómina')
-    acum_sueldo = fields.Float('Sueldo', compute='_get_acumulados_mensual')
+    acum_sueldo = fields.Float('Sueldo', readonly=True) #, compute='_get_acumulados_mensual')
 
-    acum_per_grav_anual  = fields.Float('Percepciones gravadas (anual)', compute='_get_acumulados_anual')
-    acum_isr_anual  = fields.Float('ISR (anual)', compute='_get_acumulados_anual')
-    acum_isr_antes_subem_anual  = fields.Float('ISR antes de SUBEM (anual)', compute='_get_acumulados_anual')
-    acum_subsidio_aplicado_anual  = fields.Float('Subsidio aplicado (anual)', compute='_get_acumulados_anual')
+    acum_per_grav_anual  = fields.Float('Percepciones gravadas (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_isr_anual  = fields.Float('ISR (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_isr_antes_subem_anual  = fields.Float('ISR antes de SUBEM (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_subsidio_aplicado_anual  = fields.Float('Subsidio aplicado (anual)', readonly=True) #, compute='_get_acumulados_anual')
     isr_anual = fields.Boolean(string='ISR anual')
-    acum_dev_isr  = fields.Float('Devolución ISR (anual)', compute='_get_acumulados_anual')
-    acum_dev_subem  = fields.Float('Ajuste al SUBEM (anual)', compute='_get_acumulados_anual')
-    acum_dev_subem_entregado  = fields.Float('Ajuste al SUBEM entregado (anual)', compute='_get_acumulados_anual')
-    acum_isr_ajuste  = fields.Float('Ajuste ISR (anual)', compute='_get_acumulados_anual')
+    acum_dev_isr  = fields.Float('Devolución ISR (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_dev_subem  = fields.Float('Ajuste al SUBEM (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_dev_subem_entregado  = fields.Float('Ajuste al SUBEM entregado (anual)', readonly=True) #, compute='_get_acumulados_anual')
+    acum_isr_ajuste  = fields.Float('Ajuste ISR (anual)', readonly=True) #, compute='_get_acumulados_anual')
 
-    acum_prima_vac_exento  = fields.Float('Acumulado Prima vacacional exento', compute='_get_acumulado_prima_vac')
+    acum_prima_vac_exento  = fields.Float('Acumulado Prima vacacional exento', readonly=True) #, compute='_get_acumulado_prima_vac')
 
     mes = fields.Selection(
         selection=[('01', 'Enero'), 
@@ -196,19 +196,19 @@ class HrPayslip(models.Model):
                    ],
         string=_('Mes de la nómina'))
     nom_liquidacion = fields.Boolean(string='Nomina de liquidacion', default=False)
-    periodicidad_pago = fields.Selection(
-        selection=[('01', 'Diario'), 
-                   ('02', 'Semanal'), 
-                   ('03', 'Catorcenal'),
-                   ('04', 'Quincenal'), 
-                   ('05', 'Mensual'),
-                   ('06', 'Bimensual'), 
-                   ('07', 'Unidad obra'),
-                   ('08', 'Comisión'), 
-                   ('09', 'Precio alzado'), 
-                   ('10', 'Pago por consignación'), 
-                   ('99', 'Otra periodicidad'),],
-        string=_('Periodicidad de pago CFDI'),
+    periodicidad_pago = fields.Char(
+       # selection=[('01', 'Diario'), 
+       #            ('02', 'Semanal'), 
+       #            ('03', 'Catorcenal'),
+       #            ('04', 'Quincenal'), 
+       #            ('05', 'Mensual'),
+       #            ('06', 'Bimensual'), 
+       #            ('07', 'Unidad obra'),
+       #            ('08', 'Comisión'), 
+       #            ('09', 'Precio alzado'), 
+       #            ('10', 'Pago por consignación'), 
+       #            ('99', 'Otra periodicidad'),],
+        string=_('Periodicidad de pago CFDI'), compute='_get_periodicidad',
     )
     no_periodo = fields.Selection(
         selection=[('1', 'Periodo 1'), 
@@ -626,12 +626,10 @@ class HrPayslip(models.Model):
         
         return res
 
-    @api.onchange('contract_id')
-    def set_periodicidad_pago(self):
-            values = {
-                'periodicidad_pago': self.contract_id.periodicidad_pago
-                }
-            self.update(values)
+   # @api.onchange('contract_id')
+    def _get_periodicidad(self):
+        for invoice in self:
+          invoice.periodicidad_pago = invoice.contract_id.periodicidad_pago
 
     def set_fecha_pago(self, payroll_name):
             values = {
@@ -685,7 +683,7 @@ class HrPayslip(models.Model):
             default['nomina_cfdi'] = False
         return super(HrPayslip, self).copy(default=default)
 
-    @api.onchange('periodicidad_pago', 'no_periodo')
+    #@api.onchange('periodicidad_pago', 'no_periodo')
     def _get_fondo_ahorro(self):
         total = 0
         if self.employee_id and self.contract_id.tablas_cfdi_id:
@@ -749,9 +747,9 @@ class HrPayslip(models.Model):
         total = 0
         if self.employee_id and self.contract_id.tablas_cfdi_id:
             if self.periodicidad_pago == '04':
-               mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('dia_inicio', '<=', self.date_from),('dia_fin', '>=', self.date_to)],limit =1)
+               mes_actual = self.contract_id.tablas_cfdi_id.tabla_mensual.search([('mes', '=', self.mes), ('form_id', '=', self.contract_id.tablas_cfdi_id.id)],limit =1)
             else:
-               mes_actual = self.contract_id.tablas_cfdi_id.tabla_semanal.search([('no_periodo', '=', self.no_periodo)],limit =1)
+               mes_actual = self.contract_id.tablas_cfdi_id.tabla_semanal.search([('no_periodo', '=', self.no_periodo), ('form_id', '=', self.contract_id.tablas_cfdi_id.id)],limit =1)
             date_start = mes_actual.dia_inicio # self.date_from
             date_end = mes_actual.dia_fin #self.date_to
             domain=[('state','=', 'done')]
@@ -808,26 +806,28 @@ class HrPayslip(models.Model):
                         total += line.total
         return total
 
-    @api.onchange('mes', 'periodicidad_pago', 'no_periodo')
+#    @api.onchange('mes', 'periodicidad_pago', 'no_periodo')
     def _get_acumulados_mensual(self):
-         self.acum_sueldo = self.acumulado_mes('P001')
-         self.acum_per_totales = self.acumulado_mes('TPER')
-         #self.acum_fondo_ahorro = acumulado_mes('P001')
-         self.acum_subsidio_aplicado = self.acumulado_mes('SUB')
-         self.acum_isr_antes_subem = self.acumulado_mes('ISR')
-         self.acum_per_grav = self.acumulado_mes('TPERG')
-         self.acum_isr = self.acumulado_mes('D001')
+         if self.state != 'done':
+             self.acum_sueldo = self.acumulado_mes('P001')
+             self.acum_per_totales = self.acumulado_mes('TPER')
+             #self.acum_fondo_ahorro = acumulado_mes('P001')
+             self.acum_subsidio_aplicado = self.acumulado_mes('SUB')
+             self.acum_isr_antes_subem = self.acumulado_mes('ISR')
+             self.acum_per_grav = self.acumulado_mes('TPERG')
+             self.acum_isr = self.acumulado_mes('ISR2')
 
-    @api.onchange('isr_anual')
+ #   @api.onchange('isr_anual')
     def _get_acumulados_anual(self):
-         self.acum_subsidio_aplicado_anual = self.acumulado_anual('SUB')
-         self.acum_isr_antes_subem_anual = self.acumulado_anual('ISR')
-         self.acum_per_grav_anual = self.acumulado_anual('TPERG')
-         self.acum_isr_anual = self.acumulado_anual('D001')
-         self.acum_dev_isr = self.acumulado_anual('O007')
-         self.acum_dev_subem = self.acumulado_anual('D061')
-         self.acum_dev_subem_entregado = self.acumulado_anual('D062')
-         self.acum_isr_ajuste = self.acumulado_anual('D060')
+         if self.state != 'done' and self.isr_anual:
+             self.acum_subsidio_aplicado_anual = self.acumulado_anual('SUB')
+             self.acum_isr_antes_subem_anual = self.acumulado_anual('ISR')
+             self.acum_per_grav_anual = self.acumulado_anual('TPERG')
+             self.acum_isr_anual = self.acumulado_anual('ISR2')
+             self.acum_dev_isr = self.acumulado_anual('O007')
+             self.acum_dev_subem = self.acumulado_anual('D061')
+             self.acum_dev_subem_entregado = self.acumulado_anual('D062')
+             self.acum_isr_ajuste = self.acumulado_anual('D060')
 
     def _get_acumulado_prima_vac(self):
          self.acum_prima_vac_exento = self.acumulado_anual('PE010')
@@ -1505,6 +1505,13 @@ class HrPayslip(models.Model):
         return res
 
     def compute_sheet(self):
+        for invoice in self:
+            invoice._get_acumulados_mensual()
+            invoice._get_acumulados_anual()
+            invoice._get_fondo_ahorro()
+            invoice._get_fondo_ahorro_anual()
+            invoice._get_acumulado_prima_vac()
+
         res = super(HrPayslip, self).compute_sheet()
         for rec in self:
             rec.calculo_imss()
