@@ -260,11 +260,10 @@ class HrPayslip(models.Model):
                 
                     date_start = fields.Date.from_string(date_start)
                     if datetime.datetime.today().year > date_start.year:
+                        if str(date_start.day) == '29' and str(date_start.month) == '2':
+                            date_start -=  datetime.timedelta(days=1)
                         date_start = date_start.replace(d_to.year)
-                        #if str(d_to.day) == '29' and str(d_to.month) == '2':
-                        #    d_to -=  datetime.timedelta(days=1)
-                        #d_to = d_to.replace(date_start.year)
-                        
+
                         if d_from <= date_start <= d_to:
                             diff_date = day_to - datetime.datetime.combine(contract.date_start, datetime.time.max)
                             years = diff_date.days /365.0
@@ -278,7 +277,7 @@ class HrPayslip(models.Model):
                                  'sequence': 2,
                                  'code': 'PVC',
                                  'number_of_days': vacaciones * prima_vac / 100.0, #work_data['days'],
-                                 #'number_of_hours': 1['hours'],
+                                 'number_of_hours': vacaciones * prima_vac / 100.0 * 8,
                                  'contract_id': contract.id,
                             }
                             res.append(attendances)
@@ -289,15 +288,14 @@ class HrPayslip(models.Model):
                 if date_start:
                     d_from = fields.Date.from_string(date_from)
                     d_to = fields.Date.from_string(date_to)
-                    
+
                     date_start = fields.Date.from_string(date_start)
                     if datetime.datetime.today().year > date_start.year and d_from.day > 15:
+                        if str(date_start.day) == '29' and str(date_start.month) == '2':
+                            date_start -=  datetime.timedelta(days=1)
                         date_start = date_start.replace(d_to.year)
                         d_from = d_from.replace(day=1)
-                        #if str(d_to.day) == '29' and str(d_to.month) == '2':
-                        #    d_to -=  datetime.timedelta(days=1)
-                        #d_to = d_to.replace(date_start.year)
-                        
+
                         if d_from <= date_start <= d_to:
                             diff_date = day_to - datetime.datetime.combine(contract.date_start, datetime.time.max)
                             years = diff_date.days /365.0
@@ -311,7 +309,7 @@ class HrPayslip(models.Model):
                                  'sequence': 2,
                                  'code': 'PVC',
                                  'number_of_days': vacaciones * prima_vac / 100.0, #work_data['days'],
-                                 #'number_of_hours': 1['hours'],
+                                 'number_of_hours': vacaciones * prima_vac / 100.0 * 8,
                                  'contract_id': contract.id,
                             }
                             res.append(attendances)
@@ -329,7 +327,7 @@ class HrPayslip(models.Model):
                             'sequence': 2,
                             'code': 'PDM',
                             'number_of_days': domingos, #work_data['days'],
-                            #'number_of_hours': 1['hours'],
+                            'number_of_hours': domingos * 8,
                             'contract_id': contract.id,
                      }
                 res.append(attendances)

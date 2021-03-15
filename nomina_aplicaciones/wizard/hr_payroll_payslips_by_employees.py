@@ -3,7 +3,7 @@
 from odoo import api, models, fields
 from odoo.exceptions import UserError
 #from odoo.addons.hr_payroll.wizard.hr_payroll_payslips_by_employees import HrPayslipEmployees
-from datetime import datetime
+from datetime import datetime, time
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
         run_data2 = self.env['hr.payslip.run'].search([('id', '=', active_id)])
         batch_last_id = run_data2.periodo_anterior
         #batch_last = self.env['hr.payslip.run'].search([('id', '=', batch_last_id.id)])
-        #_logger.info('batch %s', batch_last.name)
+        _logger.info('entra a este')
 
         for employee in self.env['hr.employee'].browse(data['employee_ids']):
             slip_data = self.env['hr.payslip'].onchange_employee_id(from_date, to_date, employee.id, contract_id=False)
@@ -67,6 +67,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                            'contract_id': days_now2['contract_id'],
                        })
                        new_days += days_now2['number_of_days']
+            _logger.info('escribe diaass')
             new_worked_days.append({
                            'name': "Días de trabajo",
                            'sequence': 1,
@@ -76,7 +77,89 @@ class HrPayslipEmployeesExt(models.TransientModel):
                            'contract_id': slip_data['value'].get('contract_id'),
                        })
             _logger.info("new_worked_days %s, ", new_worked_days)
+            
+            # compute Prima vacacional en fecha correcta
+            if employee.contract_id.tipo_prima_vacacional == '01':
+                date_start = employee.contract_id.date_start
+                if date_start:
+                    d_from = fields.Date.from_string(from_date)
+                    d_to = fields.Date.from_string(to_date)
+                
+                    date_start = fields.Date.from_string(date_start)
+                    if datetime.today().year > date_start.year:
+                        if str(date_start.day) == '29' and str(date_start.month) == '2':
+                            date_start -=  datetime.timedelta(days=1)
+                        date_start = date_start.replace(d_to.year)
 
+                        if d_from <= date_start <= d_to:
+                            day_to = datetime.combine(fields.Date.from_string(to_date), time.max)
+                            diff_date = day_to - datetime.combine(employee.contract_id.date_start, time.max)
+                            years = diff_date.days /365.0
+                            antiguedad_anos = int(years)
+                            tabla_antiguedades = employee.contract_id.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= antiguedad_anos)
+                            tabla_antiguedades = tabla_antiguedades.sorted(lambda x:x.antiguedad, reverse=True)
+                            vacaciones = tabla_antiguedades and tabla_antiguedades[0].vacaciones or 0
+                            prima_vac = tabla_antiguedades and tabla_antiguedades[0].prima_vac or 0
+                            attendances = {
+                                        'name': 'Prima vacacional',
+                                        'sequence': 2,
+                                        'code': 'PVC',
+                                        'number_of_days': vacaciones * prima_vac / 100.0,
+                                        'number_of_hours': vacaciones * prima_vac / 100.0 * 8,
+                                        'contract_id': employee.contract_id.id,
+                            }
+                            new_worked_days.append(attendances)
+
+            # compute Prima vacacional
+            if employee.contract_id.tipo_prima_vacacional == '03':
+                date_start = employee.contract_id.date_start
+                if date_start:
+                    d_from = fields.Date.from_string(from_date)
+                    d_to = fields.Date.from_string(to_date)
+
+                    date_start = fields.Date.from_string(date_start)
+                    if datetime.today().year > date_start.year and d_from.day > 15:
+                        if str(date_start.day) == '29' and str(date_start.month) == '2':
+                            date_start -=  datetime.timedelta(days=1)
+                        date_start = date_start.replace(d_to.year)
+                        d_from = d_from.replace(day=1)
+
+                        if d_from <= date_start <= d_to:
+                            day_to = datetime.combine(fields.Date.from_string(to_date), time.max)
+                            diff_date = day_to - datetime.combine(employee.contract_id.date_start, time.max)
+                            years = diff_date.days /365.0
+                            antiguedad_anos = int(years)
+                            tabla_antiguedades = employee.contract_id.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= antiguedad_anos)
+                            tabla_antiguedades = tabla_antiguedades.sorted(lambda x:x.antiguedad, reverse=True)
+                            vacaciones = tabla_antiguedades and tabla_antiguedades[0].vacaciones or 0
+                            prima_vac = tabla_antiguedades and tabla_antiguedades[0].prima_vac or 0
+                            attendances = {
+                                        'name': 'Prima vacacional',
+                                        'sequence': 2,
+                                        'code': 'PVC',
+                                        'number_of_days': vacaciones * prima_vac / 100.0,
+                                        'number_of_hours': vacaciones * prima_vac / 100.0 * 8,
+                                        'contract_id': employee.contract_id.id,
+                            }
+                            new_worked_days.append(attendances)
+
+            # compute Prima dominical
+            if employee.contract_id.prima_dominical:
+                domingos = 0
+                d_from = fields.Date.from_string(date_from)
+                d_to = fields.Date.from_string(date_to)
+                for i in range((d_to - d_from).days + 1):
+                           if (d_from + datetime.timedelta(days=i+1)).weekday() == 0:
+                               domingos = domingos + 1
+                attendances = {
+                                   'name': 'Prima dominical',
+                                   'sequence': 2,
+                                   'code': 'PDM',
+                                   'number_of_days': domingos,
+                                   'number_of_hours': domingos * 8,
+                                   'contract_id': employee.contract_id.id,
+                }
+                new_worked_days.append(attendances)
           #  work_days_ids = self.env['hr.payslip.work_days'].search([('id', '=', work_days)])
           #  for work in work_days_ids:
           #       _logger.info("codigo %s, dias %s", work.name, work.code)
