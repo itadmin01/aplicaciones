@@ -3,6 +3,7 @@
 from odoo import api, models, fields, _, tools
 import babel
 from datetime import date, datetime, time
+from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -11,6 +12,11 @@ class HrPayslipRun(models.Model):
     
     proyeccion = fields.Boolean(string='Proyeccion')
     periodo_anterior = fields.Many2one('hr.payslip.run', string='Periodo anterior')
+    incidencias = fields.Selection(
+        selection=[('01', 'Periodo anterior'), 
+                   ('02', 'Periodo actual')],
+        string=_('Incidencias'), default = '01'
+    )
     
     def genera_prenomina(self):
         periodicidad = self.periodicidad_pago
@@ -20,6 +26,8 @@ class HrPayslipRun(models.Model):
         locale = self.env.context.get('lang') or 'en_US'
         batch_last_id = self.periodo_anterior
         other_inputs = []
+        if self.incidencias and not self.periodo_anterior:
+              raise UserError(_('No está configurado el periodo anterior'))
         for other in self.tabla_otras_entradas:
             if other.descripcion and other.codigo: 
                 other_inputs.append((0,0,{'name':other.descripcion, 'code': other.codigo, 'amount':other.monto}))
@@ -113,44 +121,59 @@ class HrPayslipRun(models.Model):
                             }
                        new_worked_days.append(attendances)
 
+
                    work_days_now = slip_data['value'].get('worked_days_line_ids')
                    for days_now in work_days_now:
-                      if days_now['code'] == 'INC_EG' or days_now['code'] == 'INC_RT' or days_now['code'] == 'INC_MAT':
-                          new_worked_days.append({
-                              'name': days_now['name'],
-                              'sequence': days_now['sequence'],
-                              'code': days_now['code'],
-                              'number_of_days': days_now['number_of_days'],
-                              'number_of_hours': days_now['number_of_hours'],
-                              'contract_id': days_now['contract_id'],
-                          })
-                          new_days += days_now['number_of_days']
-                      if self.reporte_asistencia:
-                          asistencia_lines = self.reporte_asistencia.mapped('asistencia_line_ids')
-                          employee_id = contract.employee_id.id
-                          emp_line_exist = asistencia_lines.filtered(lambda x: x.employee_id.id==employee_id)
-                          dias_lab = 0
-                          if emp_line_exist:
-                              emp_line_exist = emp_line_exist[0]
-                              dias_lab =  emp_line_exist.dias_lab
-                          new_worked_days.append({
-                                'name': "Días de trabajo",
-                                'sequence': 1,
-                                'code': 'WORK100',
-                                'number_of_days': dias_lab,
-                                'number_of_hours': dias_lab * 8,
-                                'contract_id': slip_data['value'].get('contract_id'),
-                          })
-                      else:
-                          new_worked_days.append({
-                                'name': "Días de trabajo",
-                                'sequence': 1,
-                                'code': 'WORK100',
-                                'number_of_days': self.dias_pagar - new_days,
-                                'number_of_hours': (self.dias_pagar - new_days) * 8,
-                                'contract_id': slip_data['value'].get('contract_id'),
-                          })
-                   if batch_last_id:
+                        # pone siempre las incapacidades
+                        if days_now['code'] == 'INC_EG' or days_now['code'] == 'INC_RT' or days_now['code'] == 'INC_MAT':
+                            new_worked_days.append({
+                                'name': days_now['name'],
+                                'sequence': days_now['sequence'],
+                                'code': days_now['code'],
+                                'number_of_days': days_now['number_of_days'],
+                                'number_of_hours': days_now['number_of_hours'],
+                                'contract_id': days_now['contract_id'],
+                            })
+                            new_days += days_now['number_of_days']
+                        #si es tomar todo ahorita entonces pone otras incidencias también
+                        if self.incidencias == '02':
+                            if days_now['code'] != 'INC_EG' and days_now['code'] != 'INC_RT' and days_now['code'] != 'INC_MAT' and days_now['code'] != 'WORK100':
+                                new_worked_days.append({
+                                    'name': days_now['name'],
+                                    'sequence': days_now['sequence'],
+                                    'code': days_now['code'],
+                                    'number_of_days': days_now['number_of_days'],
+                                    'number_of_hours': days_now['number_of_hours'],
+                                    'contract_id': days_now['contract_id'],
+                                })
+                                new_days += days_now['number_of_days']
+
+                   if self.reporte_asistencia:
+                      asistencia_lines = self.reporte_asistencia.mapped('asistencia_line_ids')
+                      employee_id = contract.employee_id.id
+                      emp_line_exist = asistencia_lines.filtered(lambda x: x.employee_id.id==employee_id)
+                      dias_lab = 0
+                      if emp_line_exist:
+                                emp_line_exist = emp_line_exist[0]
+                                dias_lab =  emp_line_exist.dias_lab
+                      new_worked_days.append({
+                            'name': "Días de trabajo",
+                            'sequence': 1,
+                            'code': 'WORK100',
+                            'number_of_days': dias_lab,
+                            'number_of_hours': dias_lab * 8,
+                            'contract_id': slip_data['value'].get('contract_id'),
+                      })
+                   else:
+                      new_worked_days.append({
+                            'name': "Días de trabajo",
+                            'sequence': 1,
+                            'code': 'WORK100',
+                            'number_of_days': self.dias_pagar - new_days,
+                            'number_of_hours': (self.dias_pagar - new_days) * 8,
+                            'contract_id': slip_data['value'].get('contract_id'),
+                      })
+                   if batch_last_id and self.incidencias == '01':
                       slip_data2 = self.env['hr.payslip'].onchange_employee_id(batch_last_id.date_start, batch_last_id.date_end, contract.employee_id.id, contract_id=False)
                       work_days_previous = slip_data2['value'].get('worked_days_line_ids')
                       for days_now2 in work_days_previous:

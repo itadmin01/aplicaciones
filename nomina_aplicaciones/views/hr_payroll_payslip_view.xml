@@ -53,7 +53,8 @@
             <field name="inherit_id" ref="attendance_report.hr_payslip_run_form_asistencia"/>
             <field name="arch" type="xml">
                 <xpath expr="//group[@name='asistencia']" position="inside">
-                     <field name="periodo_anterior" />
+                     <field name="incidencias" />
+                     <field name="periodo_anterior" attrs="{'invisible' : [('incidencias','=','02')]}"/>
                 </xpath>
             </field>
        </record> 
