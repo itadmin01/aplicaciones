@@ -26,7 +26,7 @@ class HrPayslipRun(models.Model):
         locale = self.env.context.get('lang') or 'en_US'
         batch_last_id = self.periodo_anterior
         other_inputs = []
-        if self.incidencias and not self.periodo_anterior:
+        if self.incidencias == '01' and not self.periodo_anterior:
               raise UserError(_('No está configurado el periodo anterior'))
         for other in self.tabla_otras_entradas:
             if other.descripcion and other.codigo: 
