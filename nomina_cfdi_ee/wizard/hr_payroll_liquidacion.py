@@ -50,7 +50,7 @@ class GeneraLiquidaciones(models.TransientModel):
         module = self.env['ir.module.module'].sudo().search([('name','=','om_hr_payroll_account')])
         if not employee:
             raise Warning("Seleccione primero al empleado.")
-        payslip_batch_nm = 'Liquidacion ' +employee.name
+        payslip_batch_nm = 'Liquidacion ' + employee.name
         date_from = self.fecha_inicio
         date_to = self.fecha_liquidacion
         # batch
@@ -64,8 +64,9 @@ class GeneraLiquidaciones(models.TransientModel):
                'periodicidad_pago': self.contract_id.periodicidad_pago,
                'tipo_nomina': 'E',
                'fecha_pago' : date_to,
-               'journal_id': self.journal_id.id,
            })
+           if module and module.state == 'installed':
+               batch.update({'journal_id': self.journal_id.id})
         #nomina
         payslip_obj = self.env['hr.payslip']
         payslip_onchange_vals = payslip_obj.onchange_employee_id(date_from, date_to, employee_id=employee.id)
@@ -86,8 +87,18 @@ class GeneraLiquidaciones(models.TransientModel):
             contract_id = employee.contract_id.id
         if not contract_id:
             raise Warning("No se encontró contrato para %s en el periodo de tiempo."%(employee.name))
-        
+
         worked_days = []
+        compute_days = payslip_vals.get('worked_days_line_ids')
+        for lines in compute_days:
+             _logger.info('lineas %s', lines)
+             if lines['code'] != 'WORK100':
+                 worked_days.append((0,0,lines))
+             if lines['code'] != 'WORK100' and lines['code'] != 'DFES' and lines['code'] != 'DFES_3':
+                 self.dias_pendientes_pagar -= lines['number_of_days']
+                 if self.dias_pendientes_pagar < 0:
+                    self.dias_pendientes_pagar = 0
+
         worked_days.append((0,0,{'name' :'Dias aguinaldo', 'code' : 'AGUI', 'contract_id':contract_id, 'number_of_days': self.dias_aguinaldo}))
         worked_days.append((0,0,{'name' :'Dias vacaciones', 'code' : 'VAC', 'contract_id':contract_id, 'number_of_days': self.dias_vacaciones}))
         worked_days.append((0,0,{'name' :'Prima vacacional', 'code' : 'PVC', 'contract_id':contract_id, 'number_of_days': self.dias_prima_vac}))

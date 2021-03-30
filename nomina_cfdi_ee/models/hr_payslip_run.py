@@ -266,11 +266,11 @@ class HrPayslipRun(models.Model):
             else:
                 if payslip.state in ['draft','verify']:
                    payslip.action_payslip_done()
-                   try:
-                       if not payslip.nomina_cfdi:
-                          payslip.action_cfdi_nomina_generate()
-                   except Exception as e:
-                       pass
+                try:
+                   if not payslip.nomina_cfdi:
+                      payslip.action_cfdi_nomina_generate()
+                except Exception as e:
+                   pass
         return
 
     def confirmar_nomina(self):

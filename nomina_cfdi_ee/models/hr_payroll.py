@@ -439,7 +439,7 @@ class HrPayslip(models.Model):
             if work_data['days'] < 100:
             #periodo para nómina quincenal
                if contract.periodicidad_pago == '04':
-                   if contract.tipo_pago == '01' and nb_of_days < 30:
+                   if contract.tipo_pago == '01' and nb_of_days < 17:
                       total_days = work_data['days'] + leave_days
                       if total_days != 15 or leave_days != 0:
                          if leave_days == 0 and not nvo_ingreso:
@@ -462,7 +462,7 @@ class HrPayslip(models.Model):
                              'contract_id': contract.id,
                          }
                          res.append(attendances)
-                   elif contract.tipo_pago == '03' and nb_of_days < 30:
+                   elif contract.tipo_pago == '03' and nb_of_days < 17:
                       total_days = work_data['days'] + leave_days
                       if total_days != 15.21 or leave_days != 0:
                          if leave_days == 0  and not nvo_ingreso:
@@ -498,7 +498,7 @@ class HrPayslip(models.Model):
                       else:
                          number_of_days = work_data['days']
                #calculo para nóminas semanales
-               elif contract.periodicidad_pago == '02' and nb_of_days < 30:
+               elif contract.periodicidad_pago == '02' and nb_of_days < 8:
                    number_of_days = work_data['days']
                 ##   if contract.septimo_dia: #falta proporcional por septimo día
                    total_days = work_data['days'] + leave_days
