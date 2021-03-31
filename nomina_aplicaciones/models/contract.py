@@ -66,7 +66,7 @@ class Contract(models.Model):
     @api.onchange('wage', 'sueldo_diario')
     def compute_vale_despensa(self):
         total = 0
-        if self.wage and self.tablas_cfdi_id:
+        if self.wage and self.tablas_cfdi_id and self.department_id and not "R800" in self.department_id.name:
             exento = self.tablas_cfdi_id.imss_mes * self.tablas_cfdi_id.uma*10
             if (self.sueldo_diario* 30) < 13500:
                 if self.job_id.name == 'Operador de Tienda' or self.job_id.name == 'Gerente de Sucursal':
