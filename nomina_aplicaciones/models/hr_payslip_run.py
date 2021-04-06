@@ -48,7 +48,7 @@ class HrPayslipRun(models.Model):
                            date_start = fields.Date.from_string(date_start)
                            if datetime.today().year > date_start.year:
                                if str(date_start.day) == '29' and str(date_start.month) == '2':
-                                   date_start -=  datetime.timedelta(days=1)
+                                   date_start -=  timedelta(days=1)
                                date_start = date_start.replace(d_to.year)
 
                                if d_from <= date_start <= d_to:
@@ -80,7 +80,7 @@ class HrPayslipRun(models.Model):
                            date_start = fields.Date.from_string(date_start)
                            if datetime.today().year > date_start.year and d_from.day > 15:
                                if str(date_start.day) == '29' and str(date_start.month) == '2':
-                                   date_start -=  datetime.timedelta(days=1)
+                                   date_start -=  timedelta(days=1)
                                date_start = date_start.replace(d_to.year)
                                d_from = d_from.replace(day=1)
 
@@ -106,10 +106,10 @@ class HrPayslipRun(models.Model):
                    # compute Prima dominical
                    if contract.prima_dominical:
                        domingos = 0
-                       d_from = fields.Date.from_string(date_from)
-                       d_to = fields.Date.from_string(date_to)
+                       d_from = fields.Date.from_string(self.date_start)
+                       d_to = fields.Date.from_string(self.date_end)
                        for i in range((d_to - d_from).days + 1):
-                           if (d_from + datetime.timedelta(days=i+1)).weekday() == 0:
+                           if (d_from + timedelta(days=i+1)).weekday() == 0:
                                domingos = domingos + 1
                        attendances = {
                                    'name': 'Prima dominical',
