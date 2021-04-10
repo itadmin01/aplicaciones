@@ -20,7 +20,7 @@ class HrPayslipRun(models.Model):
     
     def genera_prenomina(self):
         periodicidad = self.periodicidad_pago
-        contracts = self.env['hr.contract'].search([('state','=','open'),('periodicidad_pago','=',periodicidad)])
+        contracts = self.env['hr.contract'].search([('state','=','open'),('periodicidad_pago','=',periodicidad),('date_start','<=',self.date_start)])
         payslips = self.env['hr.payslip']
         ttyme = datetime.combine(fields.Date.from_string(self.date_start), time.min)
         locale = self.env.context.get('lang') or 'en_US'

@@ -88,7 +88,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                     date_start = fields.Date.from_string(date_start)
                     if datetime.today().year > date_start.year:
                         if str(date_start.day) == '29' and str(date_start.month) == '2':
-                            date_start -=  timedelta(days=1)
+                            date_start -=  datetime.timedelta(days=1)
                         date_start = date_start.replace(d_to.year)
 
                         if d_from <= date_start <= d_to:
