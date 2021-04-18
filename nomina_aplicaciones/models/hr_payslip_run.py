@@ -76,7 +76,7 @@ class HrPayslipRun(models.Model):
                        if date_start:
                            d_from = fields.Date.from_string(self.date_start)
                            d_to = fields.Date.from_string(self.date_end)
-                    
+
                            date_start = fields.Date.from_string(date_start)
                            if datetime.today().year > date_start.year and d_from.day > 15:
                                if str(date_start.day) == '29' and str(date_start.month) == '2':
@@ -177,7 +177,7 @@ class HrPayslipRun(models.Model):
                       slip_data2 = self.env['hr.payslip'].onchange_employee_id(batch_last_id.date_start, batch_last_id.date_end, contract.employee_id.id, contract_id=False)
                       work_days_previous = slip_data2['value'].get('worked_days_line_ids')
                       for days_now2 in work_days_previous:
-                         if days_now2['code'] != 'INC_EG' and days_now2['code'] != 'INC_RT' and days_now2['code'] != 'INC_MAT' and days_now2['code'] != 'WORK100':
+                         if days_now2['code'] != 'INC_EG' and days_now2['code'] != 'INC_RT' and days_now2['code'] != 'INC_MAT' and days_now2['code'] != 'WORK100' and days_now2['code'] != 'PVC':
                              new_worked_days.append({
                                  'name': days_now2['name'],
                                  'sequence': days_now2['sequence'],

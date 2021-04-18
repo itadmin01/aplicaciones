@@ -146,8 +146,8 @@ class HrPayslipEmployeesExt(models.TransientModel):
             # compute Prima dominical
             if employee.contract_id.prima_dominical:
                 domingos = 0
-                d_from = fields.Date.from_string(date_from)
-                d_to = fields.Date.from_string(date_to)
+                d_from = fields.Date.from_string(from_date)
+                d_to = fields.Date.from_string(to_date)
                 for i in range((d_to - d_from).days + 1):
                            if (d_from + datetime.timedelta(days=i+1)).weekday() == 0:
                                domingos = domingos + 1
