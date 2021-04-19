@@ -23,7 +23,6 @@ Permite al Cliente poder generar su Factura mediante la Parte Web.
         'website_crm',
         'sale_management',
         'l10n_mx_edi',
-        'cdfi_invoice',
         'point_of_sale',
         ],
     'data': [

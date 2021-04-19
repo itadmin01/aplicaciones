@@ -73,7 +73,6 @@ class website_self_invoice_web(models.Model):
         )
         return values
 
-#     @api.multi
     def write(self, values):
         result = super(website_self_invoice_web, self).write(values)
         return result
