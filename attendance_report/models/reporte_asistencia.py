@@ -107,10 +107,9 @@ class ReporteAsistencia(models.Model):
         fecha_inicial = fields.Date.from_string(self.fecha_inicial)
         check_out = fields.Date.from_string(self.fecha_final)
         num_dias = int((check_out - fecha_inicial + timedelta(days=1)).days)
-       # if self.periodo == 'quincenal' and self.tipo_pago == '01':
-       #    num_dias = 15
+
         _logger.info('numero de dias %s', num_dias)
-        #self.env['hr.contract'].search([]).write({'state':'open'})
+
         employee_ids = self.env['hr.employee'].search([('contract_ids.state','=','open')])
         employees_id=[];
         emp_added_ids = []
@@ -118,16 +117,12 @@ class ReporteAsistencia(models.Model):
             if employee.id in emp_added_ids:
                 continue
             employees_id.append((0,0,{'employee_id':employee.id,'num_dias':num_dias, 'septimo_dia': self.septimo_dia}))
-            #self.asistencia_line_ids.employee_id += employee
             emp_added_ids.append(employee.id)
         self.asistencia_line_ids = employees_id
 
         employees = self.asistencia_line_ids.mapped('employee_id')
         employees_ids = employees.ids
-#         attendances = self.env['hr.attendance'].search([('name','>=', fecha_inicial),
-#                                                         ('name','<=', end_date),
-#                                                         ('employee_id','in', employees.ids)
-#                                                         ])
+
         cr = self._cr
         if employees_ids:
             employees_ids = str(employees_ids)
@@ -158,7 +153,6 @@ class ReporteAsistencia(models.Model):
                         vals = {}
                         for day_field, day in  days_dict.items():
                             day_date = fecha_inicial + relativedelta(days=day)
-                            #day_date = day_date.strftime(DEFAULT_SERVER_DATE_FORMAT)
                             if day_date in emp_data:
                                 vals.update({day_field: emp_data[day_date]})
                         if vals:
@@ -169,10 +163,6 @@ class ReporteAsistencia(models.Model):
                             where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s) and check_out is NULL 
                             group by employee_id, check_in::date order by check_in::date
                             """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT),check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
-#                 cr.execute("""select employee_id, check_in::date,array_agg(id) from hr_attendance
-#                             where check_in::date>='%s' and check_in::date <= '%s' and employee_id in (%s)  
-#                             group by employee_id, check_in::date order by check_in::date
-#                             """%(fecha_inicial.strftime(DEFAULT_SERVER_DATE_FORMAT),check_out.strftime(DEFAULT_SERVER_DATE_FORMAT), employees_ids))
                 employee_data = cr.fetchall()
                 employee_data_dict = {}
                 for data in employee_data:
@@ -203,7 +193,6 @@ class ReporteAsistencia(models.Model):
                         vals = {}
                         for day_field, day in  days_dict.items():
                             day_date = fecha_inicial + relativedelta(days=day)
-                            #day_date = day_date.strftime(DEFAULT_SERVER_DATE_FORMAT)
                             if day_date in emp_data:
                                 vals.update({day_field: emp_data[day_date]})
                         if vals:
@@ -331,7 +320,7 @@ class ReporteAsistenciaLine(models.Model):
                     sept = 2
                  line.dias_lab += sept
             _logger.info('tipo_pago %s', line.report_asistencia_id.tipo_pago)
-            _logger.info('numdias2 %s --- dias lab --- falta', line.num_dias, line.dias_lab, falta)
+            _logger.info('numdias2 %s --- dias lab %s --- falta %s', line.num_dias, line.dias_lab, falta)
 
 class ReporteAsistenciaLine(models.Model):
     _name = 'reporte.asistencia.line.semanal'
@@ -341,7 +330,6 @@ class ReporteAsistenciaLine(models.Model):
     def _default_hr_dia(self):
         return float(self.env['ir.config_parameter'].sudo().get_param('attendance_report.horas_minimo_por_dia'))
 
-    
     hr_dia= fields.Float(string='Horas Minimo Por Dia', default=_default_hr_dia)
     num_dias = fields.Float(string='Numero de dias')
 
@@ -392,12 +380,12 @@ class ReporteAsistenciaLine(models.Model):
 
             _logger.info('tipo_pago %s', line.report_asistencia_id.tipo_pago)
             if line.report_asistencia_id.periodo == 'quincenal':
-               if line.report_asistencia_id.tipo_pago == '01': # peridodo
-                  _logger.info('numdias2 %s --- dias lab --- falta', line.num_dias, line.dias_lab, falta)
+               if line.report_asistencia_id.tipo_pago == '01':
+                  _logger.info('numdias3 %s --- dias lab %s--- falta %s', line.num_dias, line.dias_lab, falta)
                   if line.num_dias == falta:
                       line.dias_lab = 0
                   else:
-                      line.dias_lab = 15 - falta
+                      line.dias_lab = 7 - falta
            #   if self.dias_lab > 15:
            #       self.dias_lab = 15
            #   if self.num_dias < 15 and self.dias_lab >= 13:
