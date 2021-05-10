@@ -5,7 +5,7 @@ from odoo import models, fields, api
 #from datetime import datetime
 #from dateutil import relativedelta
 from datetime import datetime, timedelta, date
-
+import math
 from collections import defaultdict
 import io
 from odoo.tools.misc import xlwt
@@ -28,11 +28,15 @@ class CalculoSBC(models.TransientModel):
                    ('6', 'Sexto'),],
         string='Bimestre', required=True, default='1'
     )
-    tabla_cfdi = fields.Many2one('tablas.cfdi','Tabla CFDI')
-    date_from = fields.Date(string='Fecha inicio')
-    date_to = fields.Date(string='Fecha fin')
+    fecha_aplicacion = fields.Date(string="Fecha aplicación")
     registro_patronal = fields.Char(string='Registro patronal')
     file_data = fields.Binary("File Data")
+    detalles = fields.Boolean(string='Mostrar detalles', default=True)
+    primer_fecha_inicio = fields.Date(string="Primer mes bimestre", required=True)
+    primer_fecha_fin = fields.Date(string="al", required=True)
+    segundo_fecha_inicio = fields.Date(string="Segundo mes bimestre", required=True)
+    segundo_fecha_fin = fields.Date(string="al", required=True)
+    total_empleados = fields.Boolean(string='Empleados sin variables', default=False)
 
     def dias_vac(self, anos):
        dias_vac = 0
@@ -56,18 +60,15 @@ class CalculoSBC(models.TransientModel):
 
     def print_sbc_report(self):
         domain=[('state','=', 'done')]
-        tablas_bimestre = self.tabla_cfdi.tabla_bimestral
-        fecha_bimestre = tablas_bimestre[int(self.bimestre) -1]
-
-        self.date_from = fecha_bimestre.dia_inicio
-        domain.append(('date_from','>=',self.date_from))
-        self.date_to = fecha_bimestre.dia_fin
-        domain.append(('date_to','<=',self.date_to))
-        primer_dia = self.date_to.replace(day=1)
+        domain.append(('date_from','>=',self.primer_fecha_inicio))
+        domain.append(('date_to','<=',self.segundo_fecha_fin))
+        primer_dia = self.segundo_fecha_fin + timedelta(days=1)
+        dias_mes_uno = (self.primer_fecha_fin - self.primer_fecha_inicio + timedelta(days=1)).days
+        dias_mes_dos = (self.segundo_fecha_fin - self.segundo_fecha_inicio + timedelta(days=1)).days
 
         if self.employee_id:
             domain.append(('employee_id','=',self.employee_id.id))
-     
+
         if self.registro_patronal:
             employee = self.env['hr.employee'].search([('registro_patronal', '=', self.registro_patronal)])
             domain.append(('employee_id', '=', employee.ids))
@@ -78,11 +79,13 @@ class CalculoSBC(models.TransientModel):
         
         workbook = xlwt.Workbook()
         bold = xlwt.easyxf("font: bold on;")
-        
+        date_format = xlwt.XFStyle()
+        date_format.num_format_str = 'dd/mm/yyyy'
+
         worksheet = workbook.add_sheet('Nomina')
         
-        from_to_date = 'De  %s a %s'%(self.date_from or '', self.date_to or '')
-        concepto = 'Concepto:  %s'%(self.date_from)
+        from_to_date = 'De  %s a %s'%(self.primer_fecha_inicio or '', self.segundo_fecha_fin or '')
+        concepto = 'Concepto:  %s'%(self.primer_fecha_inicio)
         
         worksheet.write_merge(1, 1, 0, 4, 'Reporte de cálculo de sueldo base de cotización', bold)
         worksheet.write_merge(2, 2, 0, 4, from_to_date, bold)
@@ -109,13 +112,14 @@ class CalculoSBC(models.TransientModel):
         col = 23
         num_rules = 0
         rule_index = {}
-        for rule in rules:
-            worksheet.write(4, col, 'Total ' + rule.name, bold)
-            worksheet.write(4, col+1, 'Exento ' + rule.name, bold)
-            worksheet.write(4, col+2, 'Gravado ' + rule.name, bold)
-            rule_index.update({rule.id:col})
-            col +=3
-            num_rules += 1
+        if self.detalles:
+           for rule in rules:
+               worksheet.write(4, col, 'Total ' + rule.name, bold)
+               worksheet.write(4, col+1, 'Exento ' + rule.name, bold)
+               worksheet.write(4, col+2, 'Gravado ' + rule.name, bold)
+               rule_index.update({rule.id:col})
+               col +=3
+               num_rules += 1
 
         tot_col = 23 + num_rules * 3 + 1
         worksheet.write(4, tot_col, 'Variable Bimestral', bold)
@@ -143,7 +147,7 @@ class CalculoSBC(models.TransientModel):
                    #_logger.info('agregar %s', empleado.name)
                    new_employees.append(empleado)
 
-        year = self.date_to.year
+        year = self.segundo_fecha_fin.year
         d1 = datetime(year, 1, 1)
         d2 = datetime(year + 1, 1, 1)
         days_year = (d2 - d1).days 
@@ -163,9 +167,9 @@ class CalculoSBC(models.TransientModel):
             dias_antiguedad = dia_hoy - contrato.date_start
             dias_anos = dias_antiguedad.days / days_year
             if dias_anos < 1.0: 
-                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad >= dias_anos).sorted(key=lambda x:x.antiguedad) 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad >= dias_anos).sorted(key=lambda x:x.antiguedad)
             else: 
-                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= dias_anos).sorted(key=lambda x:x.antiguedad, reverse=True) 
+                tablas_cfdi_lines = contrato.tablas_cfdi_id.tabla_antiguedades.filtered(lambda x: x.antiguedad <= dias_anos).sorted(key=lambda x:x.antiguedad, reverse=True)
             tablas_cfdi_line = tablas_cfdi_lines[0]
             vacaciones = self.dias_vac(dias_anos)
             dias_pv = vacaciones * tablas_cfdi_line.prima_vac/100.0
@@ -174,6 +178,9 @@ class CalculoSBC(models.TransientModel):
             sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
             uma = contrato.tablas_cfdi_id.uma * 30
             msbc = contrato.sueldo_base_cotizacion * 30
+            max_sdi = contrato.tablas_cfdi_id.uma * 25
+            if sdi > max_sdi:
+                 sdi = max_sdi
             worksheet.write(row, 0, employee.name)
             worksheet.write(row, 1, employee.segurosocial)
             worksheet.write(row, 2, employee.rfc)
@@ -192,24 +199,23 @@ class CalculoSBC(models.TransientModel):
             worksheet.write(row, 15, round(pv_x_dia,4))
             worksheet.write(row, 16, round(sdi,4))
             row +=1
-            worksheet.write(row, 20, 'Fecha de la nomina', bold)
-            worksheet.write(row, 21, 'Tipo', bold)
-            #worksheet.write(row, 22, 'Dias laborados', bold)
+            if self.detalles:
+               worksheet.write(row, 20, 'Fecha de la nomina', bold)
+               worksheet.write(row, 21, 'Tipo', bold)
             row +=1
             total_by_rule = defaultdict(lambda: 0.0)
             total_by_rule1 = defaultdict(lambda: 0.0)
             total_by_rule2 = defaultdict(lambda: 0.0)
             for payslip,lines in payslips.items():
-                worksheet.write(row, 20, payslip.date_from)
-                worksheet.write(row, 21, tipo_nomina.get(payslip.tipo_nomina,''))
-
-                 #             dias_lab += workline.number_of_days
-                #worksheet.write(row, 22, dias_lab)
+                if self.detalles:
+                   worksheet.write(row, 20, payslip.date_from, date_format)
+                   worksheet.write(row, 21, tipo_nomina.get(payslip.tipo_nomina,''))
 
                 for line in lines:
-                    worksheet.write(row, rule_index.get(line.salary_rule_id.id), line.total)
+                    if self.detalles:
+                       worksheet.write(row, rule_index.get(line.salary_rule_id.id), line.total)
                     total_by_rule[line.salary_rule_id.id] += line.total
-                    if payslip.date_to < primer_dia:
+                    if payslip.date_to < self.segundo_fecha_inicio:
                         total_by_rule1[line.salary_rule_id.id] += line.total
 #                        _logger.info("total1: %s", total_by_rule1[line.salary_rule_id.id])
                     else:
@@ -217,20 +223,22 @@ class CalculoSBC(models.TransientModel):
 #                        _logger.info("total2: %s", total_by_rule2[line.salary_rule_id.id])
                 row +=1
 
-            #worksheet.write(row, 19, 'Total', bold)
             for rule_id, total in total_by_rule.items():
-                worksheet.write(init_row, rule_index.get(rule_id), total)
+                if self.detalles:
+                   worksheet.write(init_row, rule_index.get(rule_id), total)
                 #sacamos calculo exento y grvado dependiendo de opción en regla salarial
                 regla = self.env['hr.salary.rule'].search([('id', '=', rule_id)])
                 if regla.variable_imss_tipo == '001':  # Monto total
-                   worksheet.write(init_row, rule_index.get(rule_id)+1, 0)
-                   worksheet.write(init_row, rule_index.get(rule_id)+2, total)
+                   if self.detalles:
+                      worksheet.write(init_row, rule_index.get(rule_id)+1, 0)
+                      worksheet.write(init_row, rule_index.get(rule_id)+2, total)
                    total_gravado  += total
                 elif regla.variable_imss_tipo == '002': # Pct de UMA
-                   tot_exento = uma * regla.variable_imss_monto/100
                    bimestre_exento = 0
                    bimestre_gravado = 0
                    if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        uma = contrato.tablas_cfdi_id.uma * dias_mes_uno
+                        tot_exento = uma * regla.variable_imss_monto/100
                         if total_by_rule1[rule_id] > tot_exento:
                            total_gravado  += total_by_rule1[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule1[rule_id]-tot_exento
@@ -238,19 +246,23 @@ class CalculoSBC(models.TransientModel):
                         else:
                            bimestre_exento += total_by_rule1[rule_id]
                    if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        uma = contrato.tablas_cfdi_id.uma * dias_mes_dos
+                        tot_exento = uma * regla.variable_imss_monto/100
                         if total_by_rule2[rule_id] > tot_exento:
                            total_gravado  += total_by_rule2[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule2[rule_id]-tot_exento
                            bimestre_exento += tot_exento
                         else:
                            bimestre_exento += total_by_rule2[rule_id]
-                   worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
-                   worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
+                   if self.detalles:
+                      worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
+                      worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
                 else:   # Pct de SBC
-                   tot_exento = msbc * regla.variable_imss_monto/100
                    bimestre_exento = 0
                    bimestre_gravado = 0
                    if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        msbc = contrato.sueldo_base_cotizacion * dias_mes_uno
+                        tot_exento = msbc * regla.variable_imss_monto/100
                         if total_by_rule1[rule_id] > tot_exento:
                            total_gravado  += total_by_rule1[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule1[rule_id]-tot_exento
@@ -258,40 +270,44 @@ class CalculoSBC(models.TransientModel):
                         else:
                            bimestre_exento += total_by_rule1[rule_id]
                    if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        msbc = contrato.sueldo_base_cotizacion * dias_mes_dos
+                        tot_exento = msbc * regla.variable_imss_monto/100
                         if total_by_rule2[rule_id] > tot_exento:
                            total_gravado  += total_by_rule2[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule2[rule_id]-tot_exento
                            bimestre_exento += tot_exento
                         else:
                            bimestre_exento += total_by_rule2[rule_id]
-                   worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
-                   worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
+                   if self.detalles:
+                      worksheet.write(init_row, rule_index.get(rule_id)+1, bimestre_exento)
+                      worksheet.write(init_row, rule_index.get(rule_id)+2, bimestre_gravado)
 
             #dias del periodo, calcula dias de todas las nóminas no solo las que aparecen con gravados
 #            dias_lab = 0
             new_domain=[('state','=', 'done')]
-            new_domain.append(('date_from','>=',self.date_from))
-            new_domain.append(('date_to','<=',self.date_to))
+            new_domain.append(('date_from','>=',self.primer_fecha_inicio))
+            new_domain.append(('date_to','<=',self.segundo_fecha_fin))
             new_domain.append(('employee_id','=',employee.id))
             payslips_days = self.env['hr.payslip'].search(new_domain)
             for pay_day in payslips_days:
                 if pay_day.tipo_nomina == 'O':
                    for workline in pay_day.worked_days_line_ids:
-                       if workline.code == 'WORK100' or workline.code == 'FJC' or workline.code == 'P025':
+                       if workline.code == 'WORK100' or workline.code == 'FJC' or workline.code == 'P025' or workline.code == 'VAC' or workline.code == 'SEPT':
                            dias_periodo += workline.number_of_days
 
             #poner totales
-            resultado = round(sdi + total_gravado/dias_periodo,2)
+            if dias_periodo == 0:
+               dias_periodo = 1
+            resultado = round(sdi + total_gravado/round(dias_periodo),2)
             if resultado > 25 * contrato.tablas_cfdi_id.uma:
                resultado = 25 * contrato.tablas_cfdi_id.uma
             worksheet.write(init_row, 18, int(round(dias_periodo)))
             worksheet.write(init_row, tot_col, total_gravado)
             if dias_periodo != 0:
-              worksheet.write(init_row, tot_col+1, round(total_gravado/dias_periodo,2))
+              worksheet.write(init_row, tot_col+1, round(total_gravado/round(dias_periodo),2))
               worksheet.write(init_row, tot_col+2, resultado)
             row +=1
                 
-#        worksheet.write(row,7,xlwt.Formula("SUM($H$3:$H$%d)/2"%(row)), style)
         for empleado2 in new_employees:
             if not empleado2.contract_id:
                 continue
@@ -313,6 +329,8 @@ class CalculoSBC(models.TransientModel):
             sdi = contrato.sueldo_diario + aguinaldo + pv_x_dia
             uma = contrato.tablas_cfdi_id.uma * 30
             msbc = contrato.sueldo_base_cotizacion * 30
+            if sdi > max_sdi:
+                 sdi = max_sdi
             worksheet.write(row, 0, empleado2.name)
             worksheet.write(row, 1, empleado2.segurosocial)
             worksheet.write(row, 2, empleado2.rfc)
@@ -349,14 +367,11 @@ class CalculoSBC(models.TransientModel):
 
     def change_sbc(self):
         domain=[('state','=', 'done')]
-        tablas_bimestre = self.tabla_cfdi.tabla_bimestral
-        fecha_bimestre = tablas_bimestre[int(self.bimestre) -1]
-
-        self.date_from = fecha_bimestre.dia_inicio
-        domain.append(('date_from','>=',self.date_from))
-        self.date_to = fecha_bimestre.dia_fin
-        domain.append(('date_to','<=',self.date_to))
-        primer_dia = self.date_to.replace(day=1)
+        domain.append(('date_from','>=',self.primer_fecha_inicio))
+        domain.append(('date_to','<=',self.segundo_fecha_fin))
+        primer_dia = self.segundo_fecha_fin + timedelta(days=1)
+        dias_mes_uno = (self.primer_fecha_fin - self.primer_fecha_inicio + timedelta(days=1)).days
+        dias_mes_dos = (self.segundo_fecha_fin - self.segundo_fecha_inicio + timedelta(days=1)).days
 
         if self.employee_id:
             domain.append(('employee_id','=',self.employee_id.id))
@@ -388,15 +403,17 @@ class CalculoSBC(models.TransientModel):
             #employees[line.slip_id.employee_id].add(line)
             
             #employee_payslip[line.slip_id.employee_id].add(line.slip_id)
-        year = self.date_to.year
+        year = self.segundo_fecha_fin.year
         d1 = datetime(year, 1, 1)
         d2 = datetime(year + 1, 1, 1)
-        days_year = (d2 - d1).days 
+        days_year = (d2 - d1).days
 
         tipo_nomina = {'O':'Nómina ordinaria', 'E':'Nómina extraordinaria'}
         for employee, payslips in employees.items():
             total_gravado = 0
             dias_periodo = 0
+            if not employee.contract_id:
+                continue
             contrato = employee.contract_id[0]
             factor_aguinaldo = 15.0/days_year
             aguinaldo = contrato.sueldo_diario * factor_aguinaldo
@@ -422,7 +439,7 @@ class CalculoSBC(models.TransientModel):
             for payslip,lines in payslips.items():
                 for line in lines:
                     total_by_rule[line.salary_rule_id.id] += line.total
-                    if payslip.date_to < primer_dia:
+                    if payslip.date_to < self.segundo_fecha_inicio:
                         total_by_rule1[line.salary_rule_id.id] += line.total
 #                        _logger.info("total1: %s", total_by_rule1[line.salary_rule_id.id])
                     else:
@@ -435,10 +452,11 @@ class CalculoSBC(models.TransientModel):
                 if regla.variable_imss_tipo == '001':  # Monto total
                    total_gravado  += total
                 elif regla.variable_imss_tipo == '002': # Pct de UMA
-                   tot_exento = uma * regla.variable_imss_monto/100
                    bimestre_exento = 0
                    bimestre_gravado = 0
                    if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        uma = contrato.tablas_cfdi_id.uma * dias_mes_uno
+                        tot_exento = uma * regla.variable_imss_monto/100
                         if total_by_rule1[rule_id] > tot_exento:
                            total_gravado  += total_by_rule1[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule1[rule_id]-tot_exento
@@ -446,6 +464,8 @@ class CalculoSBC(models.TransientModel):
                         else:
                            bimestre_exento += total_by_rule1[rule_id]
                    if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        uma = contrato.tablas_cfdi_id.uma * dias_mes_dos
+                        tot_exento = uma * regla.variable_imss_monto/100
                         if total_by_rule2[rule_id] > tot_exento:
                            total_gravado  += total_by_rule2[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule2[rule_id]-tot_exento
@@ -453,10 +473,11 @@ class CalculoSBC(models.TransientModel):
                         else:
                            bimestre_exento += total_by_rule2[rule_id]
                 else:   # Pct de SBC
-                   tot_exento = msbc * regla.variable_imss_monto/100
                    bimestre_exento = 0
                    bimestre_gravado = 0
                    if total_by_rule1[rule_id]:   #### calcula exento y gravado para primer mes
+                        msbc = contrato.sueldo_base_cotizacion * dias_mes_uno
+                        tot_exento = msbc * regla.variable_imss_monto/100
                         if total_by_rule1[rule_id] > tot_exento:
                            total_gravado  += total_by_rule1[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule1[rule_id]-tot_exento
@@ -464,6 +485,8 @@ class CalculoSBC(models.TransientModel):
                         else:
                            bimestre_exento += total_by_rule1[rule_id]
                    if total_by_rule2[rule_id]:  #### calcula exento y gravado para segundo mes
+                        msbc = contrato.sueldo_base_cotizacion * dias_mes_dos
+                        tot_exento = msbc * regla.variable_imss_monto/100
                         if total_by_rule2[rule_id] > tot_exento:
                            total_gravado  += total_by_rule2[rule_id]-tot_exento
                            bimestre_gravado += total_by_rule2[rule_id]-tot_exento
@@ -473,28 +496,37 @@ class CalculoSBC(models.TransientModel):
 
             #dias del periodo, calcula dias de todas las nóminas no solo las que aparecen con gravados
             new_domain=[('state','=', 'done')]
-            new_domain.append(('date_from','>=',self.date_from))
-            new_domain.append(('date_to','<=',self.date_to))
+            new_domain.append(('date_from','>=',self.primer_fecha_inicio))
+            new_domain.append(('date_to','<=',self.segundo_fecha_fin))
             new_domain.append(('employee_id','=',employee.id))
             payslips_days = self.env['hr.payslip'].search(new_domain)
             for pay_day in payslips_days:
                 if pay_day.tipo_nomina == 'O':
                    for workline in pay_day.worked_days_line_ids:
-                       if workline.code == 'WORK100' or workline.code == 'FJC':
+                       if workline.code == 'WORK100' or workline.code == 'FJC' or workline.code == 'P025' or workline.code == 'VAC' or workline.code == 'SEPT':
                            dias_periodo += workline.number_of_days
 
             #poner totales
-            sbc = sdi + total_gravado/dias_periodo
+            if dias_periodo == 0:
+               continue
+            resultado = round(sdi + total_gravado/round(dias_periodo),2)
+            if resultado > 25 * contrato.tablas_cfdi_id.uma:
+               resultado = 25 * contrato.tablas_cfdi_id.uma
             if employee.contract_ids:
-                    employee.contract_ids[0].write({
-                                                    'sueldo_base_cotizacion' : sbc,
-                                                    })
-                    incidencia = self.env['incidencias.nomina'].create({'tipo_de_incidencia':'Cambio salario', 'employee_id': employee.id, 'fecha': date.today(),
-                                                                   'sueldo_mensual': employee.contract_ids[0].wage,  'sueldo_diario': employee.contract_ids[0].sueldo_diario,
-                                                                   'sueldo_diario_integrado': employee.contract_ids[0].sueldo_diario_integrado, 'sueldo_por_horas' : employee.contract_ids[0].sueldo_hora, 
-                                                                   'sueldo_cotizacion_base': sbc
+                    #employee.contract_ids[0].write({
+                    #                                'sueldo_base_cotizacion' : resultado,
+                    #                                })
+                    incidencia = self.env['incidencias.nomina'].create({'tipo_de_incidencia':'Cambio salario', 
+                                                                   'employee_id': employee.id,
+                                                                   'sueldo_mensual': employee.contract_ids[0].wage,
+                                                                   'sueldo_diario': employee.contract_ids[0].sueldo_diario,
+                                                                   'sueldo_diario_integrado': employee.contract_ids[0].sueldo_diario_integrado,
+                                                                   'sueldo_por_horas' : employee.contract_ids[0].sueldo_hora,
+                                                                   'sueldo_cotizacion_base': resultado,
+                                                                   'fecha': self.fecha_aplicacion,
+                                                                   'contract_id': employee.contract_ids[0].id
                                                                    })
-                    incidencia.action_validar()
+                   # incidencia.action_validar()
         return True
 
         
