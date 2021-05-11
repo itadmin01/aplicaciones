@@ -163,7 +163,7 @@ class CalculoSBC(models.TransientModel):
             contrato = employee.contract_id[0]
             factor_aguinaldo = 15.0/days_year
             aguinaldo = contrato.sueldo_diario * factor_aguinaldo
-            dia_hoy =  self.date_to + timedelta(days=1)
+            dia_hoy =  self.segundo_fecha_fin + timedelta(days=1)
             dias_antiguedad = dia_hoy - contrato.date_start
             dias_anos = dias_antiguedad.days / days_year
             if dias_anos < 1.0: 
@@ -417,7 +417,7 @@ class CalculoSBC(models.TransientModel):
             contrato = employee.contract_id[0]
             factor_aguinaldo = 15.0/days_year
             aguinaldo = contrato.sueldo_diario * factor_aguinaldo
-            dia_hoy =  self.date_to + timedelta(days=1)
+            dia_hoy =  self.segundo_fecha_fin + timedelta(days=1)
             dias_antiguedad = dia_hoy - contrato.date_start
             dias_anos = dias_antiguedad.days / days_year
             if dias_anos < 1.0: 
