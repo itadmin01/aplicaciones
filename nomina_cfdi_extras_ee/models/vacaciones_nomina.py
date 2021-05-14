@@ -126,22 +126,23 @@ class VacacionesNomina(models.Model):
 
     
     def action_cancelar(self):
-        self.write({'state':'cancel'})
-        nombre = 'Vacaciones_'+self.name
-        registro_falta = self.env['hr.leave'].search([('name','=', nombre)], limit=1)
-        if registro_falta:
-           registro_falta.action_refuse() #.write({'state':'cancel'})
+        if self.state == 'draft':
+            self.write({'state':'cancel'})
+        else:
+            self.write({'state':'cancel'})
+            nombre = 'Vacaciones_'+self.name
+            registro_falta = self.env['hr.leave'].search([('name','=', nombre)], limit=1)
+            if registro_falta:
+               registro_falta.action_refuse()
 
-        contract = self.employee_id.contract_id
-        if contract:
-           vac = contract.tabla_vacaciones.sorted(key=lambda object1: object1.ano)
-           saldo_ant = vac[0].dias + self.dias
-           vac[0].write({'dias':saldo_ant})
+            contract = self.employee_id.contract_id
+            if contract:
+               vac = contract.tabla_vacaciones.sorted(key=lambda object1: object1.ano)
+               saldo_ant = vac[0].dias + self.dias
+               vac[0].write({'dias':saldo_ant})
 
-    
     def action_draft(self):
         self.write({'state':'draft'})
 
-    
     def unlink(self):
         raise UserError("Los registros no se pueden borrar, solo cancelar.")

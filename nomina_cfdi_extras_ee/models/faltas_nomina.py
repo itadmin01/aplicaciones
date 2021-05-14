@@ -115,11 +115,14 @@ class FaltasNomina(models.Model):
 
    
     def action_cancelar(self):
-        self.write({'state':'cancel'})
-        nombre = 'Faltas_'+self.name
-        registro_falta = self.env['hr.leave'].search([('name','=', nombre)], limit=1)
-        if registro_falta:
-           registro_falta.action_refuse() #write({'state':'cancel'})
+        if self.state == 'draft':
+            self.write({'state':'cancel'})
+        else:
+           self.write({'state':'cancel'})
+           nombre = 'Faltas_'+self.name
+           registro_falta = self.env['hr.leave'].search([('name','=', nombre)], limit=1)
+           if registro_falta:
+              registro_falta.action_refuse()
 
    
     def action_draft(self):
