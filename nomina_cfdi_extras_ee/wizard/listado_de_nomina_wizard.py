@@ -3,6 +3,7 @@ from odoo import models, fields, api
 
 class ListadoDeNominaWizard(models.TransientModel):
     _name = "listado.de.monina"
+    _description = 'Listado de nomina'
     
     todos = fields.Boolean(string="Rango")
     rango_de_empleados1 = fields.Integer(string='Rango de empleados')

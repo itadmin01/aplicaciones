@@ -6,6 +6,7 @@ from collections import defaultdict
 
 class ReportPago(models.AbstractModel):
     _name = 'report.nomina_cfdi_extras_ee.report_payslip_batches_pagos2'
+    _description = 'Reporte de Pagos'
     
     def slip_by_line(self, batche):
         slip_lines = batche.slip_ids.filtered(lambda x: x.state!='cancel').mapped('line_ids')

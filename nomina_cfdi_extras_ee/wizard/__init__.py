@@ -7,3 +7,6 @@ from . import import_logs
 from . import wizard_reglas_salariales
 from . import calculo_isr_anual
 from . import importar_dias_wizard
+from . import altas_y_bajas
+from . import total_por_empleado
+from . import total_por_departamento

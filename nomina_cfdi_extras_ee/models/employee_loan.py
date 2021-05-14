@@ -20,7 +20,7 @@ class employee_loan(models.Model):
                 ('done','Hecho'),
                 ('close', 'Cerrar'),
                 ('reject','Rechazar'),
-                ('cancel','Cancelar')]
+                ('cancel','Cancelado')]
                 
     @api.model
     def _get_employee(self):
