@@ -18,7 +18,7 @@ class WebsiteSaleExtend(WebsiteSale):
         return field_list
     def values_postprocess(self, order, mode, values, errors, error_msg):
         res = super(WebsiteSaleExtend, self).values_postprocess(order, mode, values, errors, error_msg)
-        if values.get('uso_cfdi'):
+        if values.get('uso_cfdi') and hasattr(order, 'uso_cfdi'):
             order.write({'uso_cfdi':values.get('uso_cfdi')})
             res[0].update({'uso_cfdi':values.get('uso_cfdi')})
         return res
@@ -53,7 +53,7 @@ class FacturaCliente(http.Controller):
             ticket_pos = kwargs['ticket_pos'] or True
         else:
             ticket_pos = False
-        auto_invoice_obj = http.request.env['website.self.invoice.web']
+        auto_invoice_obj = http.request.env['website.self.invoice.web'].sudo()
         partner_obj = http.request.env['res.partner']
         partner_obj = partner_obj.sudo()
         partner_exist = partner_obj.search([('vat', '=', rfc_partner)], limit=1)
@@ -62,7 +62,7 @@ class FacturaCliente(http.Controller):
             partner_vals.update({'name' : partner_name})
         if correo_electronico:
             partner_vals.update({'email' : correo_electronico})
-        if uso_del_cfdi:
+        if uso_del_cfdi and hasattr(partner_obj, 'uso_cfdi'):
             partner_vals.update({'uso_cfdi' : uso_del_cfdi})
         if partner_vals:
             if partner_exist:
@@ -74,7 +74,7 @@ class FacturaCliente(http.Controller):
         #### Si tenemos datos de una consulta previa los retornamos
         request_preview = auto_invoice_obj.search([('rfc_partner','=',rfc_partner),('order_number','=',order_number),('state','=','done')])
         if request_preview:
-            attachment_obj = http.request.env['website.self.invoice.web.attach']
+            attachment_obj = http.request.env['website.self.invoice.web.attach'].sudo()
             attachments = attachment_obj.search([('website_auto_id','=',request_preview[0].id)])
             return http.request.render('website_self_cfdi_invoice_ee_multi.html_result_thnks', 
                                                                                 {
@@ -90,7 +90,7 @@ class FacturaCliente(http.Controller):
                                                     'ticket_pos': ticket_pos,
                                                     'partner_id': partner_exist.id,
                                                     })
-        attachment_obj = http.request.env['website.self.invoice.web.attach']
+        attachment_obj = http.request.env['website.self.invoice.web.attach'].sudo()
         attachments = attachment_obj.search([('website_auto_id','=',auto_invoice_id.id)])
         if auto_invoice_id.error_message:
             return http.request.render('website_self_cfdi_invoice_ee_multi.html_result_error_inv', {'errores':[auto_invoice_id.error_message]})
@@ -106,17 +106,17 @@ class FacturaCliente(http.Controller):
                                                                         {
                                                                             'fields': ['RFC','Folio',],
                                                                         })
-        partner = request.env.user.partner_id
+        partner = request.env.user.partner_id.sudo()
         rfc_partner = kwargs['rfc_partner'] or (partner.rfc and partner.rfc.replace('MX', '')) or False
         order_number = kwargs['order_number'] or False
         monto_total = kwargs.get('monto_total',0)
 
-        auto_invoice_obj = http.request.env['website.self.invoice.web']
+        auto_invoice_obj = http.request.env['website.self.invoice.web'].sudo()
         try:
             auto_invoice = auto_invoice_obj.search([('order_number','=',order_number),
                 ('rfc_partner','=',rfc_partner)])
             if auto_invoice:
-                attachment_obj = http.request.env['website.self.invoice.web.attach']
+                attachment_obj = http.request.env['website.self.invoice.web.attach'].sudo()
                 attachments = attachment_obj.search([('website_auto_id','=',auto_invoice[0].id)])
                 return http.request.render('website_self_cfdi_invoice_ee_multi.html_result_thnks', 
                                                                                     {

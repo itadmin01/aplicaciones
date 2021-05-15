@@ -190,123 +190,50 @@ class website_self_invoice_web(models.Model):
                 if picking_br.state in ['confirmed','assigned']:
                     picking_br.button_validate()
             
-            if order_br.invoice_status != 'no': # not in('invoiced','no'):
-                if True:
-                    invoice_return = None
-                    if order_br.invoice_status == 'invoiced':
-                        invoice_return = order_br.invoice_ids.filtered(lambda r: r.state != 'cancel')
-                        if invoice_return and invoice_return[0].state != 'draft': # in['factura_correcta', 'factura_cancelada']:
-                            result.write({
-                                    'error_message':'El Pedido %s ya fue Facturado.' % result.order_number,
-                                    'state': 'error',
-                                })
-                            return result
-                    else:
-                        if not order_br.l10n_mx_edi_payment_method_id:
-                            result.write({
-                               'error_message':'El pedido %s no pudo facturarse ya que no cuenta con una forma de pago asignada, comuniquese con la compañia.' % order_br.name,
-                               'state': 'error',
-                            })
-                            return result
-                        invoice_return = order_br.action_invoice_create()
-                    invoice_obj = self.env['account.move'].sudo()
-                    invoice_br = invoice_obj.browse(invoice_return[0])
-                    vals = {'factura_cfdi':True, }
-                    if result.l10n_mx_edi_usage:
-                        vals.update({'l10n_mx_edi_usage': result.l10n_mx_edi_usage})
-                    if invoice_br.partner_id.id!= partner_id:
-                        vals.update({'partner_id':partner_id})
-
-                    if order_br.l10n_mx_edi_payment_method_id:
-                        vals.update({'l10n_mx_edi_payment_method_id': order_br.l10n_mx_edi_payment_method_id.id})
-
-                    invoice_br.write(vals)
-                    if True:
-                        if invoice_br.state == 'draft':
-                            invoice_br.self_invoice = True
-                            invoice_br.action_invoice_open()
-
-                        _logger.info('uuid %s partner %s nombre %s uso_cfdi %s estus_pac %s', invoice_br.l10n_mx_edi_cfdi_uuid, invoice_br.partner_id.name, invoice_br.name, invoice_br.l10n_mx_edi_usage, invoice_br.l10n_mx_edi_pac_status)
-#                        if invoice_br.l10n_mx_edi_pac_status=='to_sign':
-#                            retry_count = 5
-#                            while(retry_count):
-#                                invoice_br.l10n_mx_edi_update_pac_status()
-#                                if invoice_br.l10n_mx_edi_pac_status=='signed':
-#                                    break
-#                                retry_count -= 1
-#                        ir_attach = self.env['ir.attachment'].sudo()
-#                        attachment_ids = ir_attach.search([('res_model','=','account.move'),('res_id','=',invoice_br.id)])
-#                        attachment_ids = attachment_ids.filtered(lambda x:'.xml' in x.datas_fname or x.mimetype=='application/xml')
-#                        if not attachment_ids:
-#                            Template = self.env['mail.template'].sudo()
-#                            Attachment = self.env['ir.attachment'].sudo()
-                            
-#                            report_template = self.sudo().env.ref('account.account_invoices')
-#                            report, format = report_template.render_qweb_pdf([invoice_br.id])
-                            
-                            #report = Template.env['report'].get_pdf([invoice_br.id], 'account.report_invoice')
-#                            report = base64.b64encode(report)
-#                            fname =  'CDFI_' + invoice_br.number.replace('/', '_') + '.pdf'
-#                            attachment_data = {
-#                                'name': fname,
-#                                'datas_fname': fname,
-#                                'datas': report,
-#                                'res_model': 'account.move',
-#                                'res_id': invoice_br.id,
-#                            }
-
-#                            fname_xml = 'CDFI_' + invoice_br.number.replace('/', '_') + '.xml'
-#                            attachment_xml = {
-#                                'name': fname_xml,
-#                                'datas_fname': fname_xml,
-#                                'datas': invoice_br.l10n_mx_edi_cfdi, #base64.b64encode(xml_file),
-#                                'res_model': 'account.move',
-#                                'res_id': invoice_br.id,
-#                            }
-
-#                            attachment_ids = [Attachment.create(attachment_data), Attachment.create(attachment_xml)]
-                        #if attachment_ids.filtered(lambda x:'.pdf' not in x.datas_fname):
-#                        elif len(attachment_ids)==1 and attachment_ids.datas_fname.endswith('.xml'):
-#                            Template = self.env['mail.template'].sudo()
-#                            Attachment = self.env['ir.attachment'].sudo()
-#                            
-#                            report_template = self.sudo().env.ref('account.account_invoices')
-#                            report, format = report_template.render_qweb_pdf([invoice_br.id])
-                            
-                            #report = Template.env['report'].get_pdf([invoice_br.id], 'account.report_invoice')
-#                            report = base64.b64encode(report)
-#                            fname =  invoice_br.l10n_mx_edi_cfdi_name.replace('.xml', '.pdf')
-#                            attachment_data = {
-#                                'name': fname,
-#                                'datas_fname': fname,
-#                                'datas': report,
-#                                'res_model': 'account.move',
-#                                'res_id': invoice_br.id,
-#                            }
-#                            attachment_ids += Attachment.create(attachment_data)
-                            
-#                        if attachment_ids:
-#                            attachment_web =[]
-#                            for attach in attachment_ids:
-#                                xval = (0,0,{
-#                                    'attach_id': attach.id,
-#                                    })
-#                                attachment_web.append(xval)
-                        result.write({'attachment_ids':[]}) #attachment_web})
-                        result.write({'state':'done'})
-#                            invoice_br.force_invoice_send()
-                    else:
+            if order_br.invoice_status != 'no':
+                invoice_return = None
+                if order_br.invoice_status == 'invoiced':
+                    invoice_return = order_br.invoice_ids.filtered(lambda r: r.state != 'cancel')
+                    if invoice_return and invoice_return[0].state != 'draft': # in['factura_correcta', 'factura_cancelada']:
                         result.write({
-                            'error_message':'La factura %s no pudo timbrarse con el PAC, comuniquese con la compañia.' % invoice_br.number,
-                            'state': 'error',
-                        })
+                                'error_message':'El Pedido %s ya fue Facturado.' % result.order_number,
+                                'state': 'error',
+                            })
                         return result
                 else:
-                    result.write({
-                            'error_message':'El Pedido %s tiene problemas para ser procesado comuniquese con la compañia.' % result.order_number,
-                            'state': 'error',
+                    if not order_br.l10n_mx_edi_payment_method_id:
+                        result.write({
+                           'error_message':'El pedido %s no pudo facturarse ya que no cuenta con una forma de pago asignada, comuniquese con la compañia.' % order_br.name,
+                           'state': 'error',
                         })
-                    return result
+                        return result
+#                     invoice_return = order_br.action_invoice_create()
+                    invoice_return = order_br._create_invoices()
+                invoice_obj = self.env['account.move'].sudo()
+                invoice_br = invoice_obj.browse(invoice_return.id)[0]
+                vals = {}
+                if hasattr(invoice_obj, 'factura_cfdi'):
+                    vals.update({'factura_cfdi':True, })
+                if result.l10n_mx_edi_usage:
+                    vals.update({'l10n_mx_edi_usage': result.l10n_mx_edi_usage})
+                if invoice_br.partner_id.id!= partner_id:
+                    vals.update({'partner_id':partner_id})
+
+                if order_br.l10n_mx_edi_payment_method_id:
+                    vals.update({'l10n_mx_edi_payment_method_id': order_br.l10n_mx_edi_payment_method_id.id})
+		
+                invoice_br.write(vals)
+                if invoice_br.state == 'draft':
+                    invoice_br.self_invoice = True
+                    invoice_br.post()
+
+                invoice_br._l10n_mx_edi_sign()
+
+                _logger.info('uuid %s partner %s nombre %s uso_cfdi %s estus_pac %s', invoice_br.l10n_mx_edi_cfdi_uuid, invoice_br.partner_id.name, invoice_br.name, invoice_br.l10n_mx_edi_usage, invoice_br.l10n_mx_edi_pac_status)
+
+                result.write({'attachment_ids':[]})
+                result.write({'state':'done'})
+                invoice_br.force_invoice_send()
             else:
                 result.write({
                             'error_message':'El Pedido %s ya fue Facturado.' % result.order_number,
@@ -348,7 +275,9 @@ class website_self_invoice_web(models.Model):
                         invoice_return = pos_br.action_pos_order_invoice() #action_invoice()
                         invoice_id = invoice_return['res_id']
                     invoice_br = invoice_obj.browse(invoice_id)
-                    vals = {'factura_cfdi':True}
+                    vals = {}
+                    if hasattr(invoice_obj, 'factura_cfdi'):
+                        vals.update({'factura_cfdi':True, })
                     if result.l10n_mx_edi_usage:
                         vals.update({'l10n_mx_edi_usage': result.l10n_mx_edi_usage})
                     if invoice_br.partner_id.id!= partner_id:
@@ -359,13 +288,15 @@ class website_self_invoice_web(models.Model):
 #                         vals.update({'uso_cfdi': pos_br.partner_id.uso_cfdi})
 #                     if not invoice_br.methodo_pago:
 #                         vals.update({'methodo_pago': "PUE"})
-                    if pos_br.statement_ids:
-                        l10n_mx_edi_payment_method = pos_br.statement_ids[0].journal_id.l10n_mx_edi_payment_method_id
+#                     if pos_br.statement_ids:
+                    if pos_br.payment_ids:
+#                         l10n_mx_edi_payment_method = pos_br.payment_ids[0].journal_id.l10n_mx_edi_payment_method_id
+                        l10n_mx_edi_payment_method = pos_br.payment_ids[0].payment_method_id.cash_journal_id.l10n_mx_edi_payment_method_id
                         payment_method_code = l10n_mx_edi_payment_method.code
                         if payment_method_code not in ('01', '02', '03', '04', '05', '06', '08', '28', '29'):
                             result.write({
                                     'error_message':'Forma de pago desconocido %s: %s.' % (payment_method_code,
-                                                                                         pos_br.statement_ids[0].journal_id.name),
+                                                                                         pos_br.payment_ids[0].payment_method_id.cash_journal_id.name),
                                     'state': 'error',
                                 })
                             return result
@@ -381,9 +312,11 @@ class website_self_invoice_web(models.Model):
                         if not attachment_ids:
                             Template = self.env['mail.template'].sudo()
                             Attachment = self.env['ir.attachment'].sudo()
-                            report = Template.env['report'].get_pdf([invoice_br.id], 'account.report_invoice')
-                            report = base64.b64encode(report)
-                            fname =  'CDFI_' + invoice_br.number.replace('/', '_') + '.pdf'
+#                             report = Template.env['report'].get_pdf([invoice_br.id], 'account.report_invoice')
+                            report = self.env['ir.actions.report']._get_report_from_name('account.report_invoice').sudo()
+                            report_data = report.render_qweb_pdf([invoice_br.id])[0]
+                            report = base64.b64encode(report_data)
+                            fname =  'CDFI_' + invoice_br.name.replace('/', '_') + '.pdf'
                             attachment_data = {
                                 'name': fname,
                                 'store_fname': fname,
@@ -393,7 +326,7 @@ class website_self_invoice_web(models.Model):
                             }
                             
                             #xml_file = open(invoice_br.xml_invoice_link, 'rb').read()
-                            fname_xml = 'CDFI_' + invoice_br.number.replace('/', '_') + '.xml'
+                            fname_xml = 'CDFI_' + invoice_br.name.replace('/', '_') + '.xml'
                             attachment_xml = {
                                 'name': fname_xml,
                                 'store_fname': fname_xml,
