@@ -209,25 +209,24 @@ class website_self_invoice_web(models.Model):
                         return result
 #                     invoice_return = order_br.action_invoice_create()
                     invoice_return = order_br._create_invoices()
-                invoice_obj = self.env['account.move'].sudo()
-                invoice_br = invoice_obj.browse(invoice_return.id)[0]
+                invoice_br = self.env['account.move'].sudo().search([('id','=',invoice_return.id)])
                 vals = {}
-                if hasattr(invoice_obj, 'factura_cfdi'):
+                if hasattr(invoice_br, 'factura_cfdi'):
                     vals.update({'factura_cfdi':True, })
                 if result.l10n_mx_edi_usage:
                     vals.update({'l10n_mx_edi_usage': result.l10n_mx_edi_usage})
                 if invoice_br.partner_id.id!= partner_id:
                     vals.update({'partner_id':partner_id})
+                if invoice_br.company_id != order_br.company_id:
+                    _logger.info('compañia')
+                    vals.update({'company_id':order_br.company_id})
 
                 if order_br.l10n_mx_edi_payment_method_id:
                     vals.update({'l10n_mx_edi_payment_method_id': order_br.l10n_mx_edi_payment_method_id.id})
 		
                 invoice_br.write(vals)
                 if invoice_br.state == 'draft':
-                    invoice_br.self_invoice = True
-                    invoice_br.post()
-
-                invoice_br._l10n_mx_edi_sign()
+                    invoice_br.sudo().action_post()
 
                 _logger.info('uuid %s partner %s nombre %s uso_cfdi %s estus_pac %s', invoice_br.l10n_mx_edi_cfdi_uuid, invoice_br.partner_id.name, invoice_br.name, invoice_br.l10n_mx_edi_usage, invoice_br.l10n_mx_edi_pac_status)
 
