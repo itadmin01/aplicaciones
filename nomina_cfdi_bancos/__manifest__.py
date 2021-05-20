@@ -2,7 +2,7 @@
 {
     "name": "Nomina CFDI bancos",
     "author": "IT Admin",
-    "version": "13.1",
+    "version": "13.5",
     "category": "Other",
     "description":"Genera dispersion de bancos para la nómina.",
     "depends": ["nomina_cfdi_ee"],
