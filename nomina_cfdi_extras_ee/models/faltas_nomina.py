@@ -113,7 +113,6 @@ class FaltasNomina(models.Model):
         self.write({'state':'done'})
         return
 
-   
     def action_cancelar(self):
         if self.state == 'draft':
             self.write({'state':'cancel'})
@@ -124,16 +123,13 @@ class FaltasNomina(models.Model):
            if registro_falta:
               registro_falta.action_refuse()
 
-   
     def action_draft(self):
         self.write({'state':'draft'})
 
-   
     def unlink(self):
         raise UserError("Los registros no se pueden borrar, solo cancelar.")
 
     def action_change_state(self):
         for falta in self:
             if falta.state == 'draft':
-                #print('ESTADO')
                 falta.action_validar()

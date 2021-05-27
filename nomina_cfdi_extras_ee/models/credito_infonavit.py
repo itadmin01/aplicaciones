@@ -52,6 +52,9 @@ class CreditoInfonavit(models.Model):
     def action_draft(self):
         self.write({'state':'draft'})
 
+    def unlink(self):
+        raise UserError("Los registros no se pueden borrar, solo cancelar.")
+
     def action_change_state(self):
         for creditoinfonavit in self:
             if creditoinfonavit.state == 'draft':

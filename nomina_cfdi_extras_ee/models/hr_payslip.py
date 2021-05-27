@@ -53,7 +53,7 @@ class hr_payslip(models.Model):
     
     def compute_sheet(self):
         for data in self:
-          if data.concepto_periodico:
+          if data.concepto_periodico and self.aplicar_descuentos:
               if data.nom_liquidacion:
                  installment_ids = data.env['installment.line'].search(
                       [('employee_id', '=', data.employee_id.id), ('loan_id.state', '=', 'done'),

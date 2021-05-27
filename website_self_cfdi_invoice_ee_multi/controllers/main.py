@@ -40,7 +40,7 @@ class FacturaCliente(http.Controller):
         ### Esta linea implementa los Captcha en el Portal ####
         # if kwargs.has_key('g-recaptcha-response') and request.website.is_captcha_valid(kwargs['g-recaptcha-response']):
         partner = request.env.user.partner_id
-        rfc_partner = kwargs['rfc_partner'] or (partner.rfc and partner.rfc.replace('MX', '')) or False
+        rfc_partner = kwargs['rfc_partner'] or (partner.vat and partner.vat.replace('MX', '')) or False
         order_number = kwargs['order_number'] or False
         mail_to = kwargs.get('ticket_pos', False)
         ticket_pos = kwargs.get('mail_to', False)
