@@ -195,18 +195,19 @@ class IncidenciasNomina(models.Model):
 
     
     def action_cancelar(self):
+       employee = self.employee_id
        if self.state == 'draft':
          self.write({'state':'cancel'})
        else:
           if self.tipo_de_incidencia == 'Reingreso':
-              self.employee.write({'active':False})
+              employee.write({'active':False})
               if self.contract_id:
                   self.contract_id.write({'state':'cancel'})
           elif self.tipo_de_incidencia == 'Baja':
-              self.employee.write({'active':True})
+              employee.write({'active':True})
           elif self.tipo_de_incidencia == 'Cambio reg. patronal':
-              self.employee.write({'registro_patronal': self.registro_patronal_ant})
-              self.employee.write({'active':True})
+              employee.write({'registro_patronal': self.registro_patronal_ant})
+              employee.write({'active':True})
           elif self.tipo_de_incidencia == 'Cambio salario':
               if self.contract_id:
                  self.contract_id.write({'state':'open',
