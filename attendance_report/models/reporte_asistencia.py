@@ -101,6 +101,10 @@ class ReporteAsistencia(models.Model):
 
 #    @api.multi
     def calculate_attendance(self):
+        if self.asistencia_line_ids:
+             for line in self.asistencia_line_ids:
+                 line.unlink()
+
         if not self.fecha_inicial or not self.fecha_final:
             raise UserError(_('Falta seleccionar fecha inicial y final'))
 
