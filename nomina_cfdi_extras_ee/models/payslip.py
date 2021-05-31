@@ -14,9 +14,8 @@ class Payslip(models.Model):
             for line in slip.details_by_salary_rule_category:
                 if line.code == rule_code:
                    return round(line.total,2)
-                else:
-                   return 0.0
-    
+            return 0.0
+
     def get_total_work_days(self):
         total = 0
         for line in self.worked_days_line_ids:

@@ -175,27 +175,38 @@ class dev_skip_installment(models.Model):
             date = loan.nearest_date(items,date)
         else:
             date = date+relativedelta(months=1)
-        
+
         vals={
-            'name':str(self.installment_id.name) + ' - COPIA',
-            'employee_id':self.employee_id and self.employee_id.id or False,
-            'date':date,
-            'amount':self.installment_id.amount,
-            'interest':0.0,
-            'installment_amt':self.installment_id.installment_amt,
-            'ins_interest':0.0,
+            'name': str(self.installment_id.name) + ' - COPIA',
+            'employee_id': self.employee_id and self.employee_id.id or False,
+            'date': date,
+            'amount': self.installment_id.amount,
+            'interest': 0.0,
+            'installment_amt': self.installment_id.installment_amt,
+            'ins_interest': 0.0,
             'loan_id': loan.id,
+            'tipo_deduccion': self.installment_id.tipo_deduccion,
             }
         new_inst = self.env['installment.line'].create(vals)
         if new_inst:
             self.installment_id.is_skip = True
         self.state = 'done'
-        
-   
-    def cancel_skip_installment(self):
-        self.state = 'cancel'
     
-   
+    def cancel_skip_installment(self):
+        for skp_installment in self:
+            if skp_installment.state == 'done':
+                line_name = str(self.installment_id.name) + ' - COPIA'
+                line = self.env['installment.line'].search([('name','=',line_name)],limit=1)
+                if line:
+                    if not line.is_paid:
+                       line.unlink()
+                       self.installment_id.is_skip = False
+                       self.state = 'cancel'
+                    else:
+                       raise ValidationError(_('No se puede cancelar un salto ya pagado'))
+            else:
+                self.state = 'cancel'
+
     def set_to_draft(self):
         self.state = 'draft'
     
@@ -235,7 +246,5 @@ class dev_skip_installment(models.Model):
     def unlink(self):
         for skp_installment in self:
             if skp_installment.state != 'draft':
-                raise ValidationError(_('¡Omitir la eliminación de cuotas solo en el estado borrador!'))
+                raise ValidationError(_('Solo se pueden eliminar los saltos en el estado borrador'))
         return super(dev_skip_installment,self).unlink()
-
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

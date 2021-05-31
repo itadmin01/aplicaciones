@@ -21,7 +21,7 @@ class CreditoInfonavit(models.Model):
     tipo_de_descuento = fields.Selection([('1', 'Porcentaje %'), 
                                           ('2', 'Cuota fija'),
                                           ('3', 'Veces SMGV'),],
-                                            string='Tipo de movimiento', default='1')
+                                            string='Tipo de descuento', default='1')
 
     aplica_tabla = fields.Selection([('N', 'No'), 
                                      ('S', 'Si')],
