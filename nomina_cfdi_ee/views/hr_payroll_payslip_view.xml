@@ -44,7 +44,6 @@
                             <group string="Procesamiento">
                                 <field name="concepto_periodico"/>
                                 <field name="isr_ajustar"/>
-                                <!--<field name="isr_devolver"/>-->
                                 <field name="nom_liquidacion"/>
                                 <field name="isr_anual"/>
                             </group>
