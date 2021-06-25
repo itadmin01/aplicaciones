@@ -13,13 +13,13 @@ class Employee(models.Model):
     apellido_Paterno = fields.Char(_('Apellido Paterno'))
     apellido_Materno = fields.Char(_('Apellido Materno'))
     unidadMedicina = fields.Char(_('Unidad de medicina familiar'))
-    no_guia = fields.Char(_('Guia'))
+    no_guia = fields.Char(_('Clave subdelegación (2 dígitos)'))
 
 
     tipoDeTrabajador = fields.Selection(
         selection=[('1', '1 - Trabajador permanente'),
-                   ('2', '2 - Trabajador en ciudad'),
-                   ('3', '3 - Trabajador en construccion'),
+                   ('2', '2 - Trabajador Ev. en ciudad'),
+                   ('3', '3 - Trabajador Ev. en construccion'),
                    ('4', '4 - Eventual de campo'),],
         string=_('Tipo de trabajador'),
     )
@@ -36,7 +36,7 @@ class Employee(models.Model):
                    ('4', '4 - Cuatro dias'),
                    ('5', '5 - Cinco dias'),
                    ('6', '6 - Jornada reducida'),
-                   ('7', '7 - Jornada normal'),],
+                   ('0', '0 - Jornada normal'),],
         string=_('Tipo de jornada'),
     )
 
